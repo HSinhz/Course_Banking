@@ -1,0 +1,391 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Banking Basic — System Design Coverage</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+:root {
+  --bg: #f7f8fa; --card: #ffffff; --ink: #18212e; --muted: #5c6b7e; --line: #dde3ec;
+  --accent: #2563eb; --accent-dim: #dbeafe;
+  --green: #16a34a; --green-dim: #dcfce7;
+  --orange: #d97706; --orange-dim: #fef3c7;
+  --red: #dc2626; --red-dim: #fee2e2;
+  --purple: #7c3aed; --purple-dim: #ede9fe;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0d1117; --card: #161b22; --ink: #e6edf3; --muted: #8b949e; --line: #30363d;
+    --accent: #58a6ff; --accent-dim: #0d2d5e;
+    --green: #3fb950; --green-dim: #122b1c;
+    --orange: #d29922; --orange-dim: #2d2204;
+    --red: #f85149; --red-dim: #3d1212;
+    --purple: #a371f7; --purple-dim: #231444;
+    color-scheme: dark;
+  }
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg); color: var(--ink);
+  font: 15px/1.6 'Inter', system-ui, sans-serif;
+  padding: 24px 16px 64px;
+}
+header { max-width: 860px; margin: 0 auto 28px; }
+header h1 { font-size: 1.7rem; font-weight: 700; letter-spacing: -.02em; margin-bottom: 6px; }
+header .sub { color: var(--muted); font-size: .9rem; }
+header .sub strong { color: var(--accent); }
+
+.progress-wrap { margin-top: 16px; }
+.progress-track { height: 8px; background: var(--line); border-radius: 99px; overflow: hidden; display: flex; }
+.seg { height: 100%; }
+.seg.done  { background: var(--green); }
+.seg.part  { background: var(--orange); }
+.seg.no    { background: var(--red); }
+.progress-label { font-size: .78rem; color: var(--muted); margin-top: 5px; }
+
+.legend { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 3px 11px; border-radius: 999px; font-size: .8rem; font-weight: 500; border: 1px solid;
+}
+.chip.done   { background: var(--green-dim);  color: var(--green);  border-color: var(--green); }
+.chip.part   { background: var(--orange-dim); color: var(--orange); border-color: var(--orange); }
+.chip.no     { background: var(--red-dim);    color: var(--red);    border-color: var(--red); }
+.chip.bonus  { background: var(--purple-dim); color: var(--purple); border-color: var(--purple); }
+
+.summary-bar { max-width: 860px; margin: 0 auto 24px; display: flex; gap: 12px; flex-wrap: wrap; }
+.stat-tile {
+  flex: 1 1 130px; background: var(--card); border: 1px solid var(--line);
+  border-radius: 12px; padding: 14px 18px;
+}
+.stat-tile .num {
+  font-size: 2rem; font-weight: 700; letter-spacing: -.03em;
+  font-variant-numeric: tabular-nums;
+}
+.stat-tile .lbl { font-size: .77rem; color: var(--muted); margin-top: 2px; }
+.stat-tile.c-done  .num { color: var(--green); }
+.stat-tile.c-part  .num { color: var(--orange); }
+.stat-tile.c-no    .num { color: var(--red); }
+.stat-tile.c-bonus .num { color: var(--purple); }
+
+main { max-width: 860px; margin: 0 auto; display: flex; flex-direction: column; gap: 8px; }
+
+.section-divider {
+  font-size: .73rem; font-weight: 700; color: var(--muted);
+  letter-spacing: .08em; text-transform: uppercase; margin: 20px 0 6px;
+}
+
+.section-card {
+  background: var(--card); border: 1px solid var(--line);
+  border-radius: 12px; overflow: hidden;
+  transition: box-shadow .18s;
+}
+.section-card:hover { box-shadow: 0 4px 20px rgba(0,0,0,.08); }
+
+.card-header {
+  display: flex; align-items: center; gap: 12px;
+  padding: 13px 18px; cursor: pointer; user-select: none;
+}
+.num-badge {
+  flex-shrink: 0; width: 28px; height: 28px; border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: .78rem; font-weight: 700; background: var(--accent); color: #fff;
+}
+.num-badge.bonus { background: var(--purple); }
+.card-title { flex: 1; font-weight: 600; font-size: .95rem; }
+.status-badge {
+  flex-shrink: 0; padding: 3px 10px; border-radius: 999px;
+  font-size: .74rem; font-weight: 600;
+}
+.status-badge.done  { background: var(--green-dim);  color: var(--green); }
+.status-badge.part  { background: var(--orange-dim); color: var(--orange); }
+.status-badge.no    { background: var(--red-dim);    color: var(--red); }
+.status-badge.bonus { background: var(--purple-dim); color: var(--purple); }
+.chevron { transition: transform .2s; font-size: .65rem; color: var(--muted); margin-left: 4px; }
+.card-header.open .chevron { transform: rotate(180deg); }
+
+.card-body {
+  border-top: 1px solid var(--line);
+  padding: 14px 18px 16px;
+  display: none;
+}
+.card-body.open { display: block; }
+.card-body p { font-size: .88rem; margin-top: 8px; }
+.card-body .summary-text { font-weight: 500; }
+.card-body .detail-text { color: var(--muted); }
+.evidence-box {
+  margin-top: 12px; padding: 10px 14px;
+  background: var(--accent-dim); border-left: 3px solid var(--accent);
+  border-radius: 0 8px 8px 0; font-size: .82rem;
+}
+.evidence-box strong { display: block; margin-bottom: 6px; }
+.evidence-box ul { padding-left: 16px; }
+.evidence-box li { margin: 3px 0; }
+.evidence-box code {
+  font-family: 'JetBrains Mono', monospace; font-size: .84em;
+  background: rgba(0,0,0,.07); padding: 1px 5px; border-radius: 4px;
+}
+.missing-box {
+  margin-top: 10px; padding: 10px 14px;
+  background: var(--red-dim); border-left: 3px solid var(--red);
+  border-radius: 0 8px 8px 0; font-size: .82rem; color: var(--muted);
+}
+.missing-box strong { color: var(--red); }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Banking Basic — System Design Coverage</h1>
+  <p class="sub">So sánh source code với <strong>system-design-scaling.html</strong> (13 building blocks). Nhấn vào từng mục để xem chi tiết.</p>
+
+  <div class="progress-wrap">
+    <div class="progress-track" id="progressBar"></div>
+    <p class="progress-label" id="progressLabel"></p>
+  </div>
+  <div class="legend" style="margin-top:14px;">
+    <span class="chip done">✓ Đầy đủ</span>
+    <span class="chip part">~ Một phần</span>
+    <span class="chip no">✗ Chưa làm</span>
+    <span class="chip bonus">★ Bonus (ngoài doc)</span>
+  </div>
+</header>
+
+<div class="summary-bar">
+  <div class="stat-tile c-done"><div class="num" id="cnt-done">—</div><div class="lbl">Đầy đủ</div></div>
+  <div class="stat-tile c-part"><div class="num" id="cnt-part">—</div><div class="lbl">Một phần</div></div>
+  <div class="stat-tile c-no"><div class="num" id="cnt-no">—</div><div class="lbl">Chưa làm</div></div>
+  <div class="stat-tile c-bonus"><div class="num" id="cnt-bonus">—</div><div class="lbl">Bonus patterns</div></div>
+</div>
+
+<main id="main"></main>
+
+<script>
+const DATA = [
+  {
+    id: 1, title: "Single server setup", status: "done",
+    summary: "ASP.NET Core Web API chạy trên một process duy nhất, lắng nghe cổng cố định localhost:5199.",
+    detail: "Toàn bộ logic (controller → handler → DB) chạy trên một server. Đây là điểm xuất phát đúng theo design doc — cheap, fast to build, easy to reason about.",
+    evidence: ['src/Banking.API/Program.cs:16 — builder.WebHost.UseUrls("http://localhost:5199")'],
+  },
+  {
+    id: 2, title: "Separate database tier", status: "done",
+    summary: "Web tier (ASP.NET Core) và data tier (PostgreSQL) tách biệt hoàn toàn.",
+    detail: "DB chạy trên host riêng (127.0.0.1:55432), kết nối qua EF Core / Npgsql. Web server không nhúng DB vào cùng process — có thể scale độc lập.",
+    evidence: [
+      'appsettings.json — Host=127.0.0.1;Port=55432;Database=banking_basic',
+      'Infrastructure/DependencyInjection.cs — services.AddDbContext<BankingDbContext>(o => o.UseNpgsql(...))',
+    ],
+  },
+  {
+    id: 3, title: "SQL vs NoSQL", status: "part",
+    summary: "Dùng SQL (PostgreSQL) cho toàn bộ data. NoSQL chưa có, nhưng JWT thay thế NoSQL session store.",
+    detail: "Design doc khuyến nghị SQL cho core data và NoSQL cho session/logs/feeds. Project dùng JWT stateless nên không cần NoSQL session store. Tuy nhiên log aggregation và feed store vẫn không có NoSQL.",
+    evidence: [
+      'BankingDbContext.cs — DbSet<Account>, Transfer, LedgerEntry … đều là SQL/Postgres',
+      'JwtTokenService.cs — JWT HS256 thay thế server-side session → không cần NoSQL session store',
+    ],
+    missing: "Không có Redis, MongoDB hay bất kỳ NoSQL nào. Log store NoSQL chưa có.",
+  },
+  {
+    id: 4, title: "Vertical vs Horizontal scaling", status: "no",
+    summary: "Chỉ chạy một instance duy nhất, chưa cấu hình bất kỳ scaling nào.",
+    detail: "Design doc giải thích lý thuyết scale-up vs scale-out. Stateless web tier (mục 9) ĐÃ làm — tạo nền cho horizontal scale — nhưng bản thân hạ tầng (Docker multi-instance, Kubernetes, auto-scaling) chưa có.",
+    missing: "Không có Docker Compose multi-replica, không có K8s HPA, không có cloud auto-scaling config.",
+  },
+  {
+    id: 5, title: "Load balancer", status: "no",
+    summary: "Không có load balancer. Entry point duy nhất: localhost:5199.",
+    detail: "Design doc yêu cầu LB (Nginx, AWS ELB…) làm public entry point, web servers dùng private IP, health checks tự động. Project chỉ có một server, không có LB layer.",
+    missing: "Không có Nginx/HAProxy config, không có AWS ELB, không có health-check endpoint chuyên dụng.",
+  },
+  {
+    id: 6, title: "Database replication (Master-Slave)", status: "no",
+    summary: "Một PostgreSQL instance duy nhất, không có replica.",
+    detail: "Design doc yêu cầu master DB cho writes, slave DBs cho reads, async replication, failover tự động khi master down. Project connect tới một DB duy nhất không phân biệt read/write path.",
+    missing: "Không có read-replica connection string, không có failover config, không có replication setup.",
+  },
+  {
+    id: 7, title: "Cache tier (Redis / Memcached)", status: "no",
+    summary: "Mọi request đều truy vấn trực tiếp PostgreSQL, không có cache layer.",
+    detail: "Design doc yêu cầu cache (Redis/Memcached) cho dữ liệu đọc nhiều ghi ít — giảm tải DB và tăng tốc response. Project không có IDistributedCache, không có Redis. GetAccountsQuery và GetTransferStatusQuery hit DB mỗi lần.",
+    missing: "Không có Redis/Memcached. Hot data (account balances, transfer status) không được cache.",
+  },
+  {
+    id: 8, title: "CDN cho static files", status: "no",
+    summary: "Không có CDN. Project là pure REST API — không serve static assets.",
+    detail: "Design doc yêu cầu CDN cho JS/CSS/images để phục vụ user từ edge server gần hơn. Project là backend API only — CDN không applicable trực tiếp. Nếu có frontend (Vite dev server trên port 5180) thì CDN mới cần cho production.",
+    missing: "Không applicable với pure API backend. Frontend production build chưa có CDN config.",
+  },
+  {
+    id: 9, title: "Stateless web tier", status: "done",
+    summary: "Web tier hoàn toàn stateless nhờ JWT. Không có server-side session, không có sticky session.",
+    detail: "Design doc yêu cầu web servers không giữ client state, dùng shared store thay thế. Project dùng JWT HS256: mỗi request mang token, server verify signature mà không cần shared state — bất kỳ instance nào cũng handle được bất kỳ request nào.",
+    evidence: [
+      'Infrastructure/Auth/JwtTokenService.cs — JWT HS256, stateless, 8h expiry',
+      'Program.cs — AddAuthentication(JwtBearerDefaults.AuthenticationScheme)',
+      'Không có HttpContext.Session, không có sticky session config',
+    ],
+  },
+  {
+    id: 10, title: "Multiple data centers + geoDNS", status: "no",
+    summary: "Chỉ có một data center (local). Không có multi-region deployment.",
+    detail: "Design doc yêu cầu geoDNS routing traffic tới DC gần user nhất, async replication giữa DCs, failover 100% sang DC còn lại khi 1 DC down. Project không có bất kỳ multi-DC config nào.",
+    missing: "Không có geoDNS, không có multi-region DB replication, không có failover DNS routing.",
+  },
+  {
+    id: 11, title: "Message queue + workers", status: "part",
+    summary: "Outbox pattern với DB table làm queue + BackgroundService làm worker — đúng concept, chưa dùng dedicated broker.",
+    detail: "Design doc yêu cầu producer/consumer với message queue (RabbitMQ/Kafka/SQS) để decouple và xử lý async. Project implement Outbox Pattern: bảng OutboxMessage trong Postgres làm durable queue, OutboxProcessorHostedService poll mỗi giây làm consumer worker. Đúng mục đích (interbank transfer async, loose coupling), nhưng dùng DB thay vì dedicated broker.",
+    evidence: [
+      'Domain/Outbox/OutboxMessage.cs — OutboxMessage entity = persistent queue record',
+      'API/OutboxProcessorHostedService.cs — BackgroundService poll 1 giây = consumer worker',
+      'Application/Transfers/Commands/ProcessOutbox — gọi ExternalBankGateway, settle/reverse trong retry loop',
+    ],
+    missing: "Không có RabbitMQ/Kafka/SQS. DB-backed outbox ít phụ thuộc hơn nhưng throughput thấp hơn broker thực.",
+  },
+  {
+    id: 12, title: "Logging, Metrics, Automation (CI/CD)", status: "part",
+    summary: "Có ILogger cơ bản. Không có centralized logging, metrics dashboard, hay CI/CD pipeline.",
+    detail: "Design doc yêu cầu: (1) central log aggregation với search, (2) host/aggregated/business metrics + dashboards, (3) CI/CD automation build-test-deploy. Project dùng ASP.NET Core ILogger với console output — đủ cho dev, thiếu cho production scale.",
+    evidence: [
+      'OutboxProcessorHostedService.cs — logger.LogInformation / LogError',
+      'appsettings.json — Logging.LogLevel.Default: Information',
+    ],
+    missing: "Không có ELK/Seq/Datadog. Không có Prometheus/Grafana. Không có CI/CD pipeline (GitHub Actions…).",
+  },
+  {
+    id: 13, title: "Database sharding", status: "no",
+    summary: "Một PostgreSQL instance duy nhất, chưa có sharding.",
+    detail: "Design doc yêu cầu horizontal DB partitioning (user_id % N) kết hợp consistent hashing khi resharding. Project dùng single DB — hợp lý ở quy mô này — nhưng chưa có shard key, routing logic, hay consistent hashing.",
+    missing: "Không có shard key, không có routing layer, không có consistent hashing. Đây là bước scale phức tạp và tốn kém nhất.",
+  },
+  // Bonus
+  {
+    id: 'B1', title: "Double-entry Ledger accounting", status: "bonus",
+    summary: "Mỗi transfer tạo đúng 2 bút toán bất biến (Debit nguồn + Credit đích) trong cùng 1 transaction.",
+    detail: "Pattern tài chính cốt lõi, không có trong system design doc. LedgerEntry table bảo toàn audit trail bất biến — số dư Account có thể rebuild từ ledger bất kỳ lúc nào.",
+    evidence: ['TransferMoneyCommandHandler.cs:78-93 — LedgerEntry Debit + Credit ghi cùng SaveChanges với balance update'],
+  },
+  {
+    id: 'B2', title: "Optimistic Concurrency Control", status: "bonus",
+    summary: "Account.Version là concurrency token — EF thêm WHERE Version=@old vào UPDATE, retry tối đa 3 lần khi xung đột.",
+    detail: "Giải quyết lost update problem: nhiều request song song cùng đổi số dư một tài khoản. Nhẹ hơn pessimistic locking, phù hợp với tỷ lệ xung đột thấp.",
+    evidence: [
+      'BankingDbContext.cs:30 — e.Property(x => x.Version).IsConcurrencyToken()',
+      'TransferMoneyCommandHandler.cs:111-114 — catch DbUpdateConcurrencyException → retry MaxRetries=3',
+    ],
+  },
+  {
+    id: 'B3', title: "Idempotency pattern (UNIQUE INSERT)", status: "bonus",
+    summary: "Client gửi IdempotencyKey; UNIQUE constraint làm trọng tài chống duplicate trong môi trường concurrent.",
+    detail: "Giải quyết at-least-once retry problem. IdempotencyRecord.Key là PRIMARY KEY → UNIQUE. Claim key + business logic + đóng dấu Completed gói trong 1 atomic transaction. Duplicate request → DB ném unique violation → server trả cached result.",
+    evidence: [
+      'BankingDbContext.cs:62-63 — e.HasKey(x => x.Key) → UNIQUE constraint',
+      'TransferMoneyCommandHandler.cs:97-103 — INSERT key ở trạng thái Completed (terminal) kèm ResponseBody',
+      'TransferMoneyCommandHandler.cs:36-43 — fast-path: key đã Completed → deserialize và trả cache',
+    ],
+  },
+  {
+    id: 'B4', title: "Outbox pattern (reliable async delivery)", status: "bonus",
+    summary: "Interbank transfer ghi OutboxMessage trong cùng transaction với Transfer, đảm bảo at-least-once delivery dù process crash.",
+    detail: "Giải quyết dual-write problem: không thể atomic write DB và gọi HTTP external cùng lúc. Solution: ghi event vào outbox table trong cùng transaction, worker poll và thực thi side effect sau. Process restart không mất lệnh.",
+    evidence: [
+      'Domain/Outbox/OutboxMessage.cs — bảng OutboxMessage',
+      'Application/Transfers/Commands/Interbank — ghi Transfer + OutboxMessage cùng transaction',
+      'Application/Transfers/Commands/ProcessOutbox — poll pending, gọi gateway, settle/reverse',
+    ],
+  },
+  {
+    id: 'B5', title: "JWT Auth + PBKDF2 Password Hashing", status: "bonus",
+    summary: "Authentication stateless bằng JWT HS256. Password lưu dạng PBKDF2 hash, không plaintext.",
+    detail: "JwtTokenService phát token 8h với claims (sub, username, name). Pbkdf2PasswordHasher hash password trước khi lưu DB. Controllers dùng [Authorize] attribute.",
+    evidence: [
+      'Infrastructure/Auth/JwtTokenService.cs — HS256, 8h expiry, claims: sub / uniqueName / name',
+      'Infrastructure/Auth/Pbkdf2PasswordHasher.cs — PBKDF2 hashing',
+      'API/Controllers/AuthController.cs — POST /api/v1/auth/login',
+    ],
+  },
+];
+
+function render() {
+  const main = document.getElementById('main');
+  const design = DATA.filter(i => typeof i.id === 'number');
+  const bonus  = DATA.filter(i => typeof i.id !== 'number');
+
+  const cnt = { done: 0, part: 0, no: 0, bonus: bonus.length };
+  design.forEach(i => cnt[i.status]++);
+
+  document.getElementById('cnt-done').textContent  = cnt.done;
+  document.getElementById('cnt-part').textContent  = cnt.part;
+  document.getElementById('cnt-no').textContent    = cnt.no;
+  document.getElementById('cnt-bonus').textContent = cnt.bonus;
+
+  const total = design.length;
+  const bar = document.getElementById('progressBar');
+  bar.innerHTML =
+    `<div class="seg done" style="width:${cnt.done/total*100}%"></div>` +
+    `<div class="seg part" style="width:${cnt.part/total*100}%"></div>` +
+    `<div class="seg no"   style="width:${cnt.no/total*100}%"></div>`;
+  document.getElementById('progressLabel').textContent =
+    `${cnt.done} đầy đủ · ${cnt.part} một phần · ${cnt.no} chưa làm / ${total} building blocks`;
+
+  const labels = { done:'✓ Đầy đủ', part:'~ Một phần', no:'✗ Chưa làm', bonus:'★ Bonus' };
+
+  function makeCard(item) {
+    const isBonus = typeof item.id !== 'number';
+    const card = document.createElement('div');
+    card.className = 'section-card';
+    card.innerHTML = `
+      <div class="card-header" tabindex="0" role="button" aria-expanded="false">
+        <div class="num-badge${isBonus?' bonus':''}">${item.id}</div>
+        <div class="card-title">${item.title}</div>
+        <span class="status-badge ${item.status}">${labels[item.status]}</span>
+        <span class="chevron">▼</span>
+      </div>
+      <div class="card-body">
+        <p class="summary-text">${item.summary}</p>
+        <p class="detail-text">${item.detail}</p>
+        ${item.evidence ? `
+        <div class="evidence-box">
+          <strong>Evidence trong code:</strong>
+          <ul>${item.evidence.map(e=>`<li><code>${e}</code></li>`).join('')}</ul>
+        </div>` : ''}
+        ${item.missing ? `
+        <div class="missing-box">
+          <strong>Còn thiếu:</strong> ${item.missing}
+        </div>` : ''}
+      </div>`;
+
+    const hdr  = card.querySelector('.card-header');
+    const body = card.querySelector('.card-body');
+    function toggle() {
+      const open = body.classList.toggle('open');
+      hdr.classList.toggle('open', open);
+      hdr.setAttribute('aria-expanded', open);
+    }
+    hdr.addEventListener('click', toggle);
+    hdr.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); }});
+    return card;
+  }
+
+  const d1 = document.createElement('div');
+  d1.className = 'section-divider';
+  d1.textContent = '13 Building Blocks từ system-design-scaling.html';
+  main.appendChild(d1);
+  design.forEach(i => main.appendChild(makeCard(i)));
+
+  const d2 = document.createElement('div');
+  d2.className = 'section-divider';
+  d2.textContent = 'Bonus patterns (banking-specific, ngoài design doc)';
+  main.appendChild(d2);
+  bonus.forEach(i => main.appendChild(makeCard(i)));
+}
+
+render();
+</script>
+</body>
+</html>

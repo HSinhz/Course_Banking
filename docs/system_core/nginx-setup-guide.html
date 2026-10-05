@@ -1,0 +1,623 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nginx Setup — Banking Basic</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+:root {
+  --bg: #0d1117; --card: #161b22; --card2: #1c2330;
+  --ink: #e6edf3; --muted: #8b949e; --line: #30363d;
+  --accent: #58a6ff; --accent-dim: #0c2040;
+  --green: #3fb950; --green-dim: #0d2d1a;
+  --orange: #d29922; --orange-dim: #2d2004;
+  --red: #f85149; --red-dim: #3d0f0f;
+  --purple: #a371f7; --purple-dim: #1f0e40;
+  --teal: #39d0c3; --teal-dim: #0a2825;
+  color-scheme: dark;
+}
+@media (prefers-color-scheme: light) {
+  :root {
+    --bg: #f4f6fb; --card: #ffffff; --card2: #f0f4ff;
+    --ink: #18212e; --muted: #5c6b7e; --line: #dde3ec;
+    --accent: #2563eb; --accent-dim: #dbeafe;
+    --green: #16a34a; --green-dim: #dcfce7;
+    --orange: #d97706; --orange-dim: #fef3c7;
+    --red: #dc2626; --red-dim: #fee2e2;
+    --purple: #7c3aed; --purple-dim: #ede9fe;
+    --teal: #0d9488; --teal-dim: #ccfbf1;
+    color-scheme: light;
+  }
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg); color: var(--ink);
+  font: 15px/1.65 'Inter', system-ui, sans-serif;
+  padding: 32px 16px 80px;
+}
+
+.page { max-width: 860px; margin: 0 auto; }
+
+h1 { font-size: 1.65rem; font-weight: 700; letter-spacing: -.02em; }
+.subtitle { color: var(--muted); font-size: .88rem; margin-top: 6px; }
+
+/* ── Diagram ── */
+.diagram-wrap {
+  background: var(--card); border: 1px solid var(--line);
+  border-radius: 14px; padding: 24px; margin: 28px 0;
+  overflow-x: auto;
+}
+.diagram-wrap h2 { font-size: 1rem; font-weight: 600; margin-bottom: 20px; }
+
+.arch {
+  display: flex; align-items: center; gap: 0;
+  min-width: 560px; flex-wrap: nowrap;
+}
+.box {
+  border-radius: 10px; border: 1.5px solid; padding: 10px 14px;
+  text-align: center; font-size: .82rem; font-weight: 600; min-width: 90px;
+  flex-shrink: 0;
+}
+.box.user   { background: rgba(139,148,158,.12); border-color: #8b949e; }
+.box.nginx  { background: var(--green-dim); border-color: var(--green); color: var(--green); }
+.box.api    { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
+.box.db     { background: var(--purple-dim); border-color: var(--purple); color: var(--purple); }
+.box.redis  { background: var(--orange-dim); border-color: var(--orange); color: var(--orange); }
+.box sub    { display: block; font-size: .72rem; font-weight: 400; opacity: .8; margin-top: 2px; }
+
+.arrow {
+  flex: 1; display: flex; flex-direction: column; align-items: center;
+  gap: 2px; padding: 0 4px; min-width: 50px;
+}
+.arrow .line-h { height: 2px; width: 100%; background: var(--line); }
+.arrow .label  { font-size: .68rem; color: var(--muted); white-space: nowrap; }
+
+.api-group {
+  display: flex; flex-direction: column; gap: 8px; flex-shrink: 0;
+}
+
+/* ── Tabs ── */
+.tabs { display: flex; gap: 4px; margin: 28px 0 0; flex-wrap: wrap; }
+.tab-btn {
+  padding: 7px 16px; border-radius: 8px; border: 1px solid var(--line);
+  background: var(--card); color: var(--muted); font-size: .84rem; font-weight: 500;
+  cursor: pointer; font-family: inherit; transition: all .15s;
+}
+.tab-btn:hover { border-color: var(--accent); color: var(--accent); }
+.tab-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+.tab-panel { display: none; margin-top: 4px; }
+.tab-panel.active { display: block; }
+
+/* ── Section card ── */
+.section { margin: 24px 0; }
+.section-title {
+  font-size: .72rem; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .09em; color: var(--muted); margin-bottom: 10px;
+}
+
+/* ── Code block ── */
+.code-wrap {
+  background: var(--card2); border: 1px solid var(--line);
+  border-radius: 10px; overflow: hidden; margin: 10px 0;
+}
+.code-header {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 8px 14px; border-bottom: 1px solid var(--line);
+  font-size: .75rem; color: var(--muted);
+}
+.code-header .filename { font-family: 'JetBrains Mono', monospace; color: var(--accent); }
+.copy-btn {
+  background: none; border: 1px solid var(--line); color: var(--muted);
+  border-radius: 5px; padding: 2px 9px; font-size: .72rem; cursor: pointer;
+  font-family: inherit; transition: all .15s;
+}
+.copy-btn:hover { border-color: var(--accent); color: var(--accent); }
+.copy-btn.copied { border-color: var(--green); color: var(--green); }
+pre {
+  padding: 16px; overflow-x: auto; font-size: .8rem;
+  font-family: 'JetBrains Mono', monospace; line-height: 1.65;
+  tab-size: 2; margin: 0;
+}
+
+/* syntax highlight */
+.kw  { color: #ff7b72; }  /* keyword: red */
+.str { color: #a5d6ff; }  /* string: blue */
+.cm  { color: var(--muted); font-style: italic; } /* comment */
+.num { color: #d2a8ff; }  /* number: purple */
+.key { color: var(--teal); }  /* yaml/nginx key */
+.val { color: var(--orange); }  /* value */
+.sec { color: var(--green); }  /* nginx section */
+
+/* ── Explanation cards ── */
+.explain-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px,1fr)); gap: 10px; margin: 10px 0; }
+.explain-card {
+  background: var(--card); border: 1px solid var(--line);
+  border-radius: 10px; padding: 14px 16px;
+}
+.explain-card .icon { font-size: 1.3rem; margin-bottom: 6px; }
+.explain-card h4 { font-size: .88rem; font-weight: 600; margin-bottom: 4px; }
+.explain-card p { font-size: .81rem; color: var(--muted); }
+.explain-card code {
+  font-family: 'JetBrains Mono', monospace; font-size: .8em;
+  background: rgba(88,166,255,.1); color: var(--accent);
+  padding: 1px 5px; border-radius: 4px;
+}
+
+/* ── Flow steps ── */
+.flow { display: flex; flex-direction: column; gap: 6px; margin: 10px 0; }
+.flow-step {
+  display: flex; gap: 12px; align-items: flex-start;
+  background: var(--card); border: 1px solid var(--line);
+  border-radius: 8px; padding: 10px 14px;
+}
+.flow-num {
+  flex-shrink: 0; width: 24px; height: 24px; border-radius: 7px;
+  background: var(--accent); color: #fff;
+  font-size: .75rem; font-weight: 700;
+  display: flex; align-items: center; justify-content: center; margin-top: 1px;
+}
+.flow-body { font-size: .84rem; min-width: 0; }
+.flow-body strong { color: var(--ink); }
+.flow-body span { color: var(--muted); }
+
+/* ── Warning/note box ── */
+.note-box {
+  border-radius: 8px; padding: 12px 16px; font-size: .84rem; margin: 12px 0;
+  border-left: 3px solid;
+}
+.note-box.warn { background: var(--orange-dim); border-color: var(--orange); }
+.note-box.info { background: var(--accent-dim); border-color: var(--accent); }
+.note-box.good { background: var(--green-dim);  border-color: var(--green); }
+.note-box strong { display: block; margin-bottom: 3px; }
+</style>
+</head>
+<body>
+<div class="page">
+
+<header style="margin-bottom:8px;">
+  <h1>Thêm Nginx vào Banking Basic</h1>
+  <p class="subtitle">Nginx làm <strong>load balancer</strong>: nhận request từ client, phân phối đều sang nhiều instance API, health check và tự loại server chết.</p>
+</header>
+
+<!-- Architecture diagram -->
+<div class="diagram-wrap">
+  <h2>Kiến trúc sau khi thêm Nginx</h2>
+  <div class="arch">
+    <div class="box user">Client<sub>browser / app</sub></div>
+    <div class="arrow"><div class="line-h"></div><div class="label">:80</div></div>
+    <div class="box nginx">Nginx<sub>load balancer<br>:80 public</sub></div>
+    <div class="arrow"><div class="line-h"></div><div class="label">private</div></div>
+    <div class="api-group">
+      <div class="box api">API 1<sub>:5199</sub></div>
+      <div class="box api">API 2<sub>:5199</sub></div>
+      <div class="box api" style="opacity:.6;border-style:dashed">API N<sub>scale out</sub></div>
+    </div>
+    <div class="arrow"><div class="line-h"></div><div class="label">internal</div></div>
+    <div style="display:flex;flex-direction:column;gap:8px;flex-shrink:0;">
+      <div class="box db">Postgres<sub>:5432</sub></div>
+      <div class="box redis">Redis<sub>:6379</sub></div>
+    </div>
+  </div>
+  <p style="font-size:.78rem;color:var(--muted);margin-top:14px;">
+    Client chỉ biết Nginx (port 80). Hai API instance chạy trong Docker private network — không expose ra ngoài trực tiếp.
+  </p>
+</div>
+
+<!-- Tabs -->
+<div class="tabs">
+  <button class="tab-btn active" onclick="showTab('overview')">Tổng quan</button>
+  <button class="tab-btn" onclick="showTab('nginx-conf')">nginx.conf</button>
+  <button class="tab-btn" onclick="showTab('compose')">docker-compose.yml</button>
+  <button class="tab-btn" onclick="showTab('api-changes')">Thay đổi trong API</button>
+  <button class="tab-btn" onclick="showTab('test')">Kiểm tra</button>
+</div>
+
+<!-- Tab: Overview -->
+<div class="tab-panel active" id="tab-overview">
+  <div class="section">
+    <div class="section-title">Nginx làm gì trong hệ thống này</div>
+    <div class="explain-grid">
+      <div class="explain-card">
+        <div class="icon">⚖️</div>
+        <h4>Load balancing</h4>
+        <p>Phân phối request đều giữa API 1 và API 2 theo thuật toán <code>round-robin</code> (mặc định). Request 1 → API 1, Request 2 → API 2, Request 3 → API 1…</p>
+      </div>
+      <div class="explain-card">
+        <div class="icon">❤️</div>
+        <h4>Health check</h4>
+        <p>Nginx chủ động gọi <code>GET /health</code> mỗi 10s. Nếu API 1 trả về lỗi 2 lần liên tiếp → loại khỏi pool. Khi hồi phục → tự đưa vào lại.</p>
+      </div>
+      <div class="explain-card">
+        <div class="icon">🔒</div>
+        <h4>Ẩn API server</h4>
+        <p>Port 5199 của API không expose ra ngoài Docker network. Chỉ Nginx ở port 80 nhận request từ bên ngoài — giảm attack surface.</p>
+      </div>
+      <div class="explain-card">
+        <div class="icon">🔄</div>
+        <h4>Failover tự động</h4>
+        <p>API 1 crash? Nginx phát hiện qua health check và route 100% sang API 2. Không cần can thiệp thủ công.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Request flow chi tiết</div>
+    <div class="flow">
+      <div class="flow-step"><div class="flow-num">1</div><div class="flow-body"><strong>Client gửi request</strong> <span>→ POST http://localhost/api/v1/transfers (port 80, Nginx)</span></div></div>
+      <div class="flow-step"><div class="flow-num">2</div><div class="flow-body"><strong>Nginx nhận</strong> <span>→ chọn upstream server theo round-robin, thêm header <code>X-Real-IP</code> và <code>X-Forwarded-For</code></span></div></div>
+      <div class="flow-step"><div class="flow-num">3</div><div class="flow-body"><strong>Forward tới API instance</strong> <span>→ HTTP proxy tới <code>api:5199</code> qua internal Docker network</span></div></div>
+      <div class="flow-step"><div class="flow-num">4</div><div class="flow-body"><strong>API xử lý</strong> <span>→ đọc JWT, gọi DB/Redis, trả JSON response</span></div></div>
+      <div class="flow-step"><div class="flow-num">5</div><div class="flow-body"><strong>Nginx forward response về client</strong> <span>→ client không biết request đi qua instance nào</span></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- Tab: nginx.conf -->
+<div class="tab-panel" id="tab-nginx-conf">
+  <div class="note-box info" style="margin-top:16px;">
+    <strong>File cần tạo:</strong> <code>docker/nginx/nginx.conf</code> — đặt trong thư mục docker/ cùng chỗ với init.sql hiện tại.
+  </div>
+  <div class="code-wrap">
+    <div class="code-header">
+      <span class="filename">docker/nginx/nginx.conf</span>
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    </div>
+    <pre><span class="cm"># Worker processes: auto = số CPU cores</span>
+<span class="key">worker_processes</span>  <span class="val">auto</span>;
+
+<span class="key">events</span> {
+    <span class="cm"># Số kết nối đồng thời tối đa mỗi worker</span>
+    <span class="key">worker_connections</span>  <span class="num">1024</span>;
+}
+
+<span class="key">http</span> {
+    <span class="key">include</span>       <span class="val">/etc/nginx/mime.types</span>;
+    <span class="key">default_type</span>  <span class="val">application/octet-stream</span>;
+
+    <span class="cm"># Log format có request time để đo latency</span>
+    <span class="key">log_format</span> <span class="val">main</span> <span class="str">'$remote_addr - $upstream_addr [$time_local] '
+                     '"$request" $status $body_bytes_sent '
+                     'rt=$request_time ut=$upstream_response_time'</span>;
+
+    <span class="key">access_log</span>  <span class="val">/var/log/nginx/access.log</span>  <span class="val">main</span>;
+    <span class="key">error_log</span>   <span class="val">/var/log/nginx/error.log</span>   <span class="val">warn</span>;
+
+    <span class="key">sendfile</span>        <span class="val">on</span>;
+    <span class="key">keepalive_timeout</span>  <span class="num">65</span>;
+
+    <span class="cm"># ── Upstream: pool các API instance ──────────────────────────</span>
+    <span class="sec">upstream</span> <span class="val">banking_api</span> {
+        <span class="cm"># least_conn: chuyển request tới server ít connection nhất</span>
+        <span class="cm"># (phù hợp hơn round-robin khi request có độ trễ không đều)</span>
+        <span class="key">least_conn</span>;
+
+        <span class="cm"># Tên service trong Docker Compose: api1, api2</span>
+        <span class="key">server</span>  <span class="val">api1:5199</span>  <span class="val">max_fails=2</span>  <span class="val">fail_timeout=10s</span>;
+        <span class="key">server</span>  <span class="val">api2:5199</span>  <span class="val">max_fails=2</span>  <span class="val">fail_timeout=10s</span>;
+        <span class="cm"># max_fails=2: sau 2 lần lỗi trong fail_timeout → đánh dấu down</span>
+        <span class="cm"># fail_timeout=10s: thời gian giữ trạng thái "down" rồi thử lại</span>
+
+        <span class="cm"># Giữ kết nối tái sử dụng tới upstream (giảm overhead TCP)</span>
+        <span class="key">keepalive</span>  <span class="num">16</span>;
+    }
+
+    <span class="cm"># ── Virtual server ───────────────────────────────────────────</span>
+    <span class="sec">server</span> {
+        <span class="key">listen</span>       <span class="num">80</span>;
+        <span class="key">server_name</span>  <span class="val">_</span>;  <span class="cm"># chấp nhận mọi hostname</span>
+
+        <span class="cm"># Timeout cho upstream (API xử lý chậm)</span>
+        <span class="key">proxy_connect_timeout</span>  <span class="num">5s</span>;
+        <span class="key">proxy_send_timeout</span>     <span class="num">60s</span>;
+        <span class="key">proxy_read_timeout</span>     <span class="num">60s</span>;
+
+        <span class="cm"># ── Health check endpoint riêng (không qua upstream) ──</span>
+        <span class="key">location</span> <span class="val">/nginx-health</span> {
+            <span class="key">access_log</span>  <span class="val">off</span>;
+            <span class="key">return</span>  <span class="num">200</span>  <span class="str">"nginx ok\n"</span>;
+            <span class="key">add_header</span>  <span class="val">Content-Type</span>  <span class="val">text/plain</span>;
+        }
+
+        <span class="cm"># ── Forward tất cả request vào API upstream ────────────</span>
+        <span class="key">location</span> <span class="val">/</span> {
+            <span class="key">proxy_pass</span>          <span class="val">http://banking_api</span>;
+            <span class="key">proxy_http_version</span>  <span class="num">1.1</span>;
+
+            <span class="cm"># Cần cho keepalive upstream</span>
+            <span class="key">proxy_set_header</span>  <span class="val">Connection</span>  <span class="str">""</span>;
+
+            <span class="cm"># Truyền IP thật của client vào API</span>
+            <span class="key">proxy_set_header</span>  <span class="val">X-Real-IP</span>         <span class="val">$remote_addr</span>;
+            <span class="key">proxy_set_header</span>  <span class="val">X-Forwarded-For</span>   <span class="val">$proxy_add_x_forwarded_for</span>;
+            <span class="key">proxy_set_header</span>  <span class="val">X-Forwarded-Proto</span>  <span class="val">$scheme</span>;
+            <span class="key">proxy_set_header</span>  <span class="val">Host</span>               <span class="val">$host</span>;
+        }
+    }
+}</pre>
+  </div>
+
+  <div class="explain-grid" style="margin-top:12px;">
+    <div class="explain-card">
+      <div class="icon">🔀</div>
+      <h4>least_conn</h4>
+      <p>Chọn server ít connection đang active nhất. Tốt hơn round-robin khi transfer interbank (chậm) và query balance (nhanh) cùng chạy — tránh dồn hết vào 1 server.</p>
+    </div>
+    <div class="explain-card">
+      <div class="icon">🚨</div>
+      <h4>max_fails + fail_timeout</h4>
+      <p>Sau <code>max_fails=2</code> lần lỗi trong <code>fail_timeout=10s</code>, server đó bị đánh dấu "unavailable" trong 10s. Sau đó Nginx thử lại 1 request — nếu OK thì đưa vào pool.</p>
+    </div>
+    <div class="explain-card">
+      <div class="icon">📡</div>
+      <h4>X-Forwarded-For</h4>
+      <p>API cần header này để biết IP thật của client (không phải IP của Nginx). Dùng trong logging, rate limiting, hoặc audit log.</p>
+    </div>
+    <div class="explain-card">
+      <div class="icon">⚡</div>
+      <h4>keepalive 16</h4>
+      <p>Nginx giữ tối đa 16 kết nối TCP idle tới mỗi upstream. Request tiếp theo tái sử dụng ngay — không tốn RTT cho TCP handshake mới.</p>
+    </div>
+  </div>
+</div>
+
+<!-- Tab: docker-compose -->
+<div class="tab-panel" id="tab-compose">
+  <div class="note-box info" style="margin-top:16px;">
+    <strong>Thay đổi docker-compose.yml:</strong> Thêm service <code>nginx</code>, <code>api1</code>, <code>api2</code>. API không expose port ra ngoài nữa — chỉ Nginx nhận traffic.
+  </div>
+  <div class="code-wrap">
+    <div class="code-header">
+      <span class="filename">docker-compose.yml (phần thêm mới)</span>
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    </div>
+    <pre><span class="key">services</span><span class="val">:</span>
+
+  <span class="cm"># ── Nginx load balancer ──────────────────────────────────────</span>
+  <span class="key">nginx</span><span class="val">:</span>
+    <span class="key">image</span><span class="val">:</span> <span class="str">nginx:1.26-alpine</span>
+    <span class="key">ports</span><span class="val">:</span>
+      - <span class="str">"80:80"</span>          <span class="cm"># port duy nhất expose ra ngoài</span>
+    <span class="key">volumes</span><span class="val">:</span>
+      - <span class="str">./docker/nginx/nginx.conf:/etc/nginx/nginx.conf:ro</span>
+    <span class="key">depends_on</span><span class="val">:</span>
+      <span class="key">api1</span><span class="val">:</span>
+        <span class="key">condition</span><span class="val">:</span> <span class="str">service_started</span>
+      <span class="key">api2</span><span class="val">:</span>
+        <span class="key">condition</span><span class="val">:</span> <span class="str">service_started</span>
+    <span class="key">restart</span><span class="val">:</span> <span class="str">unless-stopped</span>
+
+  <span class="cm"># ── API instance 1 ───────────────────────────────────────────</span>
+  <span class="key">api1</span><span class="val">:</span>
+    <span class="key">build</span><span class="val">:</span>
+      <span class="key">context</span><span class="val">:</span> <span class="str">.</span>
+      <span class="key">dockerfile</span><span class="val">:</span> <span class="str">src/Banking.API/Dockerfile</span>
+    <span class="key">environment</span><span class="val">:</span>
+      - <span class="str">ConnectionStrings__Default=Host=postgres;Port=5432;Database=banking_basic;Username=postgres;Password=admin</span>
+      - <span class="str">Jwt__Key=dev-only-super-secret-key-change-me-32bytes-min!!</span>
+      - <span class="str">Jwt__Issuer=BankingBasic</span>
+      - <span class="str">Jwt__Audience=BankingBasicClient</span>
+      - <span class="str">Redis__Connection=redis:6379</span>
+    <span class="key">depends_on</span><span class="val">:</span>
+      <span class="key">postgres</span><span class="val">:</span>
+        <span class="key">condition</span><span class="val">:</span> <span class="str">service_healthy</span>
+      <span class="key">redis</span><span class="val">:</span>
+        <span class="key">condition</span><span class="val">:</span> <span class="str">service_started</span>
+    <span class="cm"># KHÔNG có "ports:" — chỉ accessible qua internal Docker network</span>
+    <span class="key">restart</span><span class="val">:</span> <span class="str">unless-stopped</span>
+
+  <span class="cm"># ── API instance 2 (cấu hình giống api1) ─────────────────────</span>
+  <span class="key">api2</span><span class="val">:</span>
+    <span class="key">build</span><span class="val">:</span>
+      <span class="key">context</span><span class="val">:</span> <span class="str">.</span>
+      <span class="key">dockerfile</span><span class="val">:</span> <span class="str">src/Banking.API/Dockerfile</span>
+    <span class="key">environment</span><span class="val">:</span>
+      - <span class="str">ConnectionStrings__Default=Host=postgres;Port=5432;Database=banking_basic;Username=postgres;Password=admin</span>
+      - <span class="str">Jwt__Key=dev-only-super-secret-key-change-me-32bytes-min!!</span>
+      - <span class="str">Jwt__Issuer=BankingBasic</span>
+      - <span class="str">Jwt__Audience=BankingBasicClient</span>
+      - <span class="str">Redis__Connection=redis:6379</span>
+    <span class="key">depends_on</span><span class="val">:</span>
+      <span class="key">postgres</span><span class="val">:</span>
+        <span class="key">condition</span><span class="val">:</span> <span class="str">service_healthy</span>
+      <span class="key">redis</span><span class="val">:</span>
+        <span class="key">condition</span><span class="val">:</span> <span class="str">service_started</span>
+    <span class="key">restart</span><span class="val">:</span> <span class="str">unless-stopped</span>
+
+  <span class="cm"># postgres, pgadmin, redis, redisinsight — giữ nguyên như cũ</span>
+  <span class="key">postgres</span><span class="val">: ...</span>
+  <span class="key">redis</span><span class="val">: ...</span></pre>
+  </div>
+
+  <div class="note-box warn" style="margin-top:12px;">
+    <strong>Cần có Dockerfile:</strong> Hiện project chưa có <code>src/Banking.API/Dockerfile</code>. Xem tab "Thay đổi trong API" để xem Dockerfile mẫu.
+  </div>
+</div>
+
+<!-- Tab: API changes -->
+<div class="tab-panel" id="tab-api-changes">
+  <div class="section">
+    <div class="section-title">1 — Thêm Dockerfile cho Banking.API</div>
+    <div class="code-wrap">
+      <div class="code-header">
+        <span class="filename">src/Banking.API/Dockerfile</span>
+        <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+      </div>
+      <pre><span class="cm"># Build stage</span>
+<span class="kw">FROM</span> mcr.microsoft.com/dotnet/sdk:10.0 <span class="kw">AS</span> build
+<span class="kw">WORKDIR</span> /src
+
+<span class="cm"># Copy csproj và restore trước (layer cache)</span>
+<span class="kw">COPY</span> src/Banking.Domain/Banking.Domain.csproj           src/Banking.Domain/
+<span class="kw">COPY</span> src/Banking.Application/Banking.Application.csproj src/Banking.Application/
+<span class="kw">COPY</span> src/Banking.Infrastructure/Banking.Infrastructure.csproj src/Banking.Infrastructure/
+<span class="kw">COPY</span> src/Banking.API/Banking.API.csproj                 src/Banking.API/
+<span class="kw">RUN</span> dotnet restore src/Banking.API/Banking.API.csproj
+
+<span class="cm"># Copy toàn bộ source và publish</span>
+<span class="kw">COPY</span> src/ src/
+<span class="kw">RUN</span> dotnet publish src/Banking.API/Banking.API.csproj \
+    -c Release -o /app/publish --no-restore
+
+<span class="cm"># Runtime stage (image nhỏ hơn, không có SDK)</span>
+<span class="kw">FROM</span> mcr.microsoft.com/dotnet/aspnet:10.0 <span class="kw">AS</span> runtime
+<span class="kw">WORKDIR</span> /app
+<span class="kw">COPY</span> --from=build /app/publish .
+
+<span class="cm"># Lắng nghe trên port 5199 bên trong container</span>
+<span class="kw">ENV</span> ASPNETCORE_URLS=http://+:5199
+<span class="kw">EXPOSE</span> 5199
+
+<span class="kw">ENTRYPOINT</span> ["dotnet", "Banking.API.dll"]</pre>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">2 — Thêm health check endpoint vào Program.cs</div>
+    <p style="font-size:.85rem;color:var(--muted);margin-bottom:8px;">Nginx cần endpoint này để kiểm tra API còn sống không. Thêm trước <code>app.Run()</code>:</p>
+    <div class="code-wrap">
+      <div class="code-header">
+        <span class="filename">src/Banking.API/Program.cs — thêm 1 dòng</span>
+        <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+      </div>
+      <pre><span class="cm">// Thêm dòng này trước app.Run()</span>
+app.MapGet(<span class="str">"/health"</span>, () => Results.Ok(<span class="kw">new</span> { status = <span class="str">"healthy"</span> }));
+
+app.Run();</pre>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">3 — Thêm ForwardedHeaders middleware</div>
+    <p style="font-size:.85rem;color:var(--muted);margin-bottom:8px;">Để API đọc được IP thật của client từ header <code>X-Forwarded-For</code> mà Nginx gắn vào:</p>
+    <div class="code-wrap">
+      <div class="code-header">
+        <span class="filename">src/Banking.API/Program.cs — thêm vào đầu pipeline</span>
+        <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+      </div>
+      <pre><span class="cm">// Thêm TRƯỚC app.UseCors() và app.UseAuthentication()</span>
+app.UseForwardedHeaders(<span class="kw">new</span> ForwardedHeadersOptions
+{
+    ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
+});
+
+app.UseCors(<span class="str">"frontend"</span>);
+app.UseAuthentication();
+<span class="cm">// ...</span></pre>
+    </div>
+    <div class="note-box info">
+      <strong>Tại sao cần:</strong> Không có middleware này, <code>HttpContext.Connection.RemoteIpAddress</code> sẽ trả IP của Nginx (172.x.x.x) thay vì IP thật của client. Ảnh hưởng tới audit log và rate limiting.
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">4 — Bỏ UseUrls hardcode (không cần nữa)</div>
+    <div class="code-wrap">
+      <div class="code-header">
+        <span class="filename">src/Banking.API/Program.cs — xóa dòng này</span>
+        <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+      </div>
+      <pre><span class="cm">// Xóa dòng này — port sẽ lấy từ env ASPNETCORE_URLS trong Dockerfile</span>
+<span class="cm">// builder.WebHost.UseUrls("http://localhost:5199");  ← XÓA</span></pre>
+    </div>
+  </div>
+</div>
+
+<!-- Tab: Test -->
+<div class="tab-panel" id="tab-test">
+  <div class="section">
+    <div class="section-title">Chạy và kiểm tra</div>
+    <div class="code-wrap">
+      <div class="code-header">
+        <span class="filename">Terminal</span>
+        <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+      </div>
+      <pre><span class="cm"># Build và chạy toàn bộ stack</span>
+docker compose up --build -d
+
+<span class="cm"># Kiểm tra Nginx còn sống</span>
+curl http://localhost/nginx-health
+
+<span class="cm"># Kiểm tra API qua Nginx</span>
+curl http://localhost/health
+
+<span class="cm"># Login (qua Nginx port 80)</span>
+curl -X POST http://localhost/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"demo","password":"demo123"}'
+
+<span class="cm"># Xem Nginx đang forward tới instance nào (log)</span>
+docker compose logs nginx -f</pre>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Kiểm tra failover</div>
+    <div class="flow">
+      <div class="flow-step"><div class="flow-num">1</div><div class="flow-body"><strong>Kill api1</strong> <span>→ <code>docker compose stop api1</code></span></div></div>
+      <div class="flow-step"><div class="flow-num">2</div><div class="flow-body"><strong>Gửi request</strong> <span>→ <code>curl http://localhost/health</code> — vẫn OK vì Nginx tự route sang api2</span></div></div>
+      <div class="flow-step"><div class="flow-num">3</div><div class="flow-body"><strong>Xem Nginx log</strong> <span>→ thấy <code>upstream server temporarily disabled</code> cho api1</span></div></div>
+      <div class="flow-step"><div class="flow-num">4</div><div class="flow-body"><strong>Start lại api1</strong> <span>→ <code>docker compose start api1</code> — Nginx tự đưa vào pool sau 10s</span></div></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Kiểm tra load balancing</div>
+    <div class="code-wrap">
+      <div class="code-header">
+        <span class="filename">Terminal — xem request phân phối đều</span>
+        <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+      </div>
+      <pre><span class="cm"># Gửi 10 request liên tiếp và xem upstream trong log</span>
+<span class="kw">for</span> i in {1..10}; <span class="kw">do</span> curl -s http://localhost/health > /dev/null; <span class="kw">done</span>
+
+<span class="cm"># Log Nginx sẽ hiển thị upstream_addr xen kẽ: api1:5199 và api2:5199</span>
+docker compose logs nginx | grep upstream_addr</pre>
+    </div>
+  </div>
+
+  <div class="note-box good">
+    <strong>Cấu trúc file sau khi xong:</strong>
+    <pre style="font-size:.78rem;margin-top:8px;font-family:'JetBrains Mono',monospace;opacity:.9;">BankingBasic/
+├── docker/
+│   ├── nginx/
+│   │   └── nginx.conf          ← mới tạo
+│   ├── init.sql                ← giữ nguyên
+│   └── pgadmin-servers.json   ← giữ nguyên
+├── src/
+│   └── Banking.API/
+│       ├── Dockerfile          ← mới tạo
+│       └── Program.cs          ← sửa 3 chỗ nhỏ
+└── docker-compose.yml          ← thêm nginx, api1, api2</pre>
+  </div>
+</div>
+
+</div><!-- .page -->
+
+<script>
+function showTab(name) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelector(`[onclick="showTab('${name}')"]`).classList.add('active');
+  document.getElementById('tab-' + name).classList.add('active');
+}
+
+function copyCode(btn) {
+  const pre = btn.closest('.code-wrap').querySelector('pre');
+  const text = pre.innerText;
+  navigator.clipboard.writeText(text).then(() => {
+    btn.textContent = 'Copied!';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 1800);
+  }).catch(() => {
+    const sel = window.getSelection();
+    const range = document.createRange();
+    range.selectNodeContents(pre);
+    sel.removeAllRanges();
+    sel.addRange(range);
+  });
+}
+</script>
+</body>
+</html>

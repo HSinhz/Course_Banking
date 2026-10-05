@@ -1,0 +1,442 @@
+﻿<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Chuyển Tiền An Toàn — Lưu Đồ &amp; Quy Tắc Bảo Vệ</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Segoe UI',Tahoma,Arial,sans-serif;background:#eef2f7;color:#0f2038;padding:24px 16px 60px}
+  .poster{max-width:1160px;margin:0 auto;background:#f7fafd;border:1px solid #dbe4f0;border-radius:20px;overflow:hidden;box-shadow:0 18px 50px rgba(20,45,90,.14)}
+  .head{background:linear-gradient(135deg,#12336e,#1e59c9);color:#fff;padding:26px 30px}
+  .head h1{font-size:27px;font-weight:800}
+  .head p{opacity:.9;margin-top:6px;font-size:14.5px}
+  .body{padding:22px 24px}
+  .band{background:#fff;border:1px solid #e2e9f3;border-radius:16px;padding:16px 18px;margin-bottom:20px;box-shadow:0 6px 18px rgba(30,60,110,.05)}
+  .band>h2{font-size:14px;letter-spacing:.12em;text-transform:uppercase;color:#1e59c9;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+  .band>h2 .ic{width:26px;height:26px;border-radius:7px;background:#e8f0ff;display:grid;place-items:center;font-size:15px}
+
+  /* flowchart shapes */
+  svg{width:100%;height:auto;display:block}
+  .lbl{font:600 13px 'Segoe UI',Arial;fill:#1f2d4d}
+  .lblw{font:700 12.5px 'Segoe UI',Arial;fill:#fff}
+  .edge{font:800 11px 'Segoe UI',Arial}
+  .yes{fill:#0a8a4f}.no{fill:#c0392b}
+  .conn{stroke:#7f93b5;stroke-width:2;fill:none}
+  .conn.dash{stroke-dasharray:5 4;stroke:#c98a2b}
+  .proc{fill:#ffe6a3;stroke:#e0a92e;stroke-width:2}
+  .dec{fill:#22314f;stroke:#12203c;stroke-width:2}
+  .start{fill:#b6f06a;stroke:#7cb52e;stroke-width:2}
+  .endok{fill:#b6f06a;stroke:#7cb52e;stroke-width:2}
+  .enderr{fill:#ffb3b3;stroke:#e05a5a;stroke-width:2}
+  .endwarn{fill:#ffd88a;stroke:#e0a92e;stroke-width:2}
+  .gateband{fill:#e7f8f0;stroke:#059669;stroke-dasharray:5 4}
+  .money{font:800 12px 'Segoe UI',Arial;fill:#b45309}
+  .pb{cursor:pointer}
+  .pb circle{stroke:#fff;stroke-width:1.5}
+  .pb text{font:800 9.5px 'Segoe UI',Arial;fill:#fff;pointer-events:none}
+  .cA{fill:#2563eb}.cB{fill:#0d9488}.cC{fill:#7c3aed}.cD{fill:#d97706}.cE{fill:#e11d48}.cF{fill:#059669}
+
+  /* fixed explain panel */
+  #explain{position:fixed;right:16px;bottom:16px;width:330px;max-width:calc(100vw - 32px);background:#fff;
+           border:1px solid #d7e0ee;border-radius:14px;box-shadow:0 14px 40px rgba(20,45,90,.28);padding:14px 16px;z-index:50}
+  #explain .x{position:absolute;top:8px;right:12px;cursor:pointer;color:#9db4d6;font-weight:800;font-size:16px}
+  #explain .pt{display:inline-block;font-weight:800;color:#fff;border-radius:8px;padding:2px 9px;font-size:12px;margin-bottom:8px}
+  #explain h4{font-size:14px;color:#12336e;margin-bottom:6px}
+  #explain p{font-size:12.7px;color:#41506a;line-height:1.5}
+  #explain .hint{color:#8091ad;font-size:12.5px}
+
+  /* legend */
+  .legend{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  @media(max-width:820px){.legend{grid-template-columns:1fr}}
+  .lgroup{border:1px solid #e6edf6;border-radius:12px;padding:12px 14px;background:#fbfdff}
+  .lgroup h4{font-size:13px;margin-bottom:8px}
+  .rule{display:flex;gap:9px;padding:6px;border-radius:8px;align-items:flex-start;font-size:12.5px;cursor:pointer}
+  .rule:hover{background:#f3f7fd}
+  .rule .pchip{color:#fff;font-weight:800;border-radius:999px;padding:2px 8px;font-size:11px;flex:0 0 auto}
+  .rule b{color:#12336e}.rule small{color:#5c6b82;display:block;margin-top:1px;line-height:1.4}
+  .rule.flash{animation:flash 1.6s ease}
+  @keyframes flash{0%,100%{background:transparent}18%{background:#fff3d6}}
+  .bA{background:#2563eb}.bB{background:#0d9488}.bC{background:#7c3aed}.bD{background:#d97706}.bE{background:#e11d48}.bF{background:#059669}
+  .pchip{color:#fff;font-weight:800;border-radius:999px;padding:2px 8px;font-size:11px;border:none}
+  .blk{margin-top:6px;font-size:11.8px;color:#7a1d1d;background:#fdeef0;border-left:3px solid #e11d48;border-radius:0 6px 6px 0;padding:5px 8px}
+  .blk b{color:#b3122f}
+  #threats .threat{display:flex;gap:12px;align-items:center;padding:9px 12px;border:1px solid #f2d3d8;background:#fff7f8;border-radius:10px;margin-bottom:8px;font-size:13px}
+  #threats .stopby{font-size:9.5px;color:#fff;background:#e11d48;border-radius:5px;padding:3px 7px;font-weight:800;white-space:nowrap}
+  #threats .tx{flex:1;color:#7a1d1d;line-height:1.4}
+  #threats .rules{display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end}
+  #threats .rules .pchip{cursor:pointer}
+  .core{background:linear-gradient(135deg,#0e2a5e,#123f9e);border:none}
+  .core>h2{color:#bcd4ff}
+  .core>h2 .ic{background:rgba(255,255,255,.14)}
+  .core .lead{color:#dbe7ff;font-size:13px;margin-bottom:14px;line-height:1.5}
+  .principles{display:grid;grid-template-columns:1fr 1fr;gap:11px}
+  @media(max-width:820px){.principles{grid-template-columns:1fr}}
+  .pr{display:flex;gap:11px;padding:11px 12px;border:1px solid rgba(255,255,255,.14);border-radius:12px;background:rgba(255,255,255,.06)}
+  .pr .pn{font-size:20px;line-height:1;flex:0 0 auto}
+  .pr h5{font-size:13.5px;color:#fff;margin-bottom:2px}
+  .pr p{font-size:12.2px;color:#c5d6f5;line-height:1.45}
+  .pr .rs{margin-top:6px;display:flex;gap:4px;flex-wrap:wrap}
+  .pr .rs .pchip{cursor:pointer;font-size:10px;padding:1px 7px}
+  .foot{background:#12336e;color:#cfe0ff;font-size:12.5px;padding:15px 24px;line-height:1.55}
+  .foot b{color:#fff}
+</style>
+</head>
+<body>
+<div class="poster">
+  <div class="head">
+    <h1>🔐 CHUYỂN TIỀN AN TOÀN — LƯU ĐỒ QUYẾT ĐỊNH</h1>
+    <p>Đi theo mũi tên. Hình thoi là quyết định Có/Không — mỗi nhánh "Không/khác" là trường hợp lỗi và quy tắc (P#) xử lý nó. Mỗi quy tắc cũng hiển thị <b>🛡️ nguy hiểm mà nó chặn</b>. Nhấp bất kỳ huy hiệu P màu nào để xem giải thích đầy đủ.</p>
+  </div>
+
+  <div class="body">
+
+    <!-- CORE BANKING PRINCIPLES -->
+    <div class="band core">
+      <h2><span class="ic">💠</span> Ngân hàng lõi — các nguyên tắc bất biến khi chuyển tiền</h2>
+      <p class="lead">Hệ thống ngân hàng lõi là <b>nguồn sự thật duy nhất</b> về tiền; di động / ATM / internet chỉ là kênh giao dịch. Dù kênh nào, giao dịch chuyển tiền đều phải tuân thủ các nguyên tắc này — các quy tắc bảo vệ (P#) bên dưới là cách demo này thực thi chúng. Nhấp chip để xem quy tắc.</p>
+      <div class="principles">
+        <div class="pr"><span class="pn">⚛️</span><div><h5>1. Nguyên tử — tất cả hoặc không có gì</h5><p>Ghi Nợ, Ghi Có và bản ghi commit cùng nhau trong một giao dịch, hoặc không gì cả. Không bao giờ có chuyển tiền “ghi nợ mà không ghi có” nửa vời.</p><div class="rs"><span class="pchip bA" data-r="P2">P2</span><span class="pchip bC" data-r="P8">P8</span></div></div></div>
+        <div class="pr"><span class="pn">🔁</span><div><h5>2. Idempotent — chính xác một lần</h5><p>Một giao dịch logic có hiệu lực một lần, bất kể được gửi bao nhiêu lần (thử lại, nhấp đúp, hai yêu cầu song song).</p><div class="rs"><span class="pchip bA" data-r="P1">P1</span><span class="pchip bA" data-r="P3">P3</span><span class="pchip bA" data-r="P4">P4</span></div></div></div>
+        <div class="pr"><span class="pn">⚖️</span><div><h5>3. Bảo toàn — bút toán kép</h5><p>Mỗi giao dịch là cặp Ghi Nợ = Ghi Có cân bằng; tổng tiền trong hệ thống không bao giờ thay đổi (chỉ dịch chuyển giữa các tài khoản).</p><div class="rs"><span class="pchip bC" data-r="P8">P8</span><span class="pchip bC" data-r="P9">P9</span><span class="pchip bD" data-r="P11">P11</span></div></div></div>
+        <div class="pr"><span class="pn">🔒</span><div><h5>4. An toàn đồng thời — cô lập</h5><p>Hai thao tác trên cùng tài khoản tại cùng thời điểm không thể gây thâm hụt hoặc mất cập nhật (không “mất update”).</p><div class="rs"><span class="pchip bB" data-r="P5">P5</span><span class="pchip bB" data-r="P6">P6</span></div></div></div>
+        <div class="pr"><span class="pn">🎯</span><div><h5>5. Tiền chính xác</h5><p>Số tiền là decimal, không bao giờ float — không bị sai lệch làm tròn (0.1 + 0.2 phải bằng 0.3).</p><div class="rs"><span class="pchip bB" data-r="P7">P7</span></div></div></div>
+        <div class="pr"><span class="pn">💾</span><div><h5>6. Bền vững — chịu crash</h5><p>Khi đã được chấp nhận, giao dịch tồn tại qua các crash tiến trình; lệnh “bước tiếp theo” không bao giờ bị mất và sẽ được hoàn thành.</p><div class="rs"><span class="pchip bD" data-r="P13">P13</span><span class="pchip bD" data-r="P14">P14</span></div></div></div>
+        <div class="pr"><span class="pn">📜</span><div><h5>7. Kiểm toán được — sổ cái bất biến</h5><p>Sổ cái chỉ thêm (không bao giờ sửa/xóa) cho phép tái tạo mọi số dư và đối soát mọi giao dịch.</p><div class="rs"><span class="pchip bC" data-r="P8">P8</span><span class="pchip bC" data-r="P9">P9</span><span class="pchip bD" data-r="P16">P16</span></div></div></div>
+        <div class="pr"><span class="pn">🚦</span><div><h5>8. Trạng thái xác định — không đoán mò</h5><p>Mỗi giao dịch có trạng thái xác định (Pending → Completed / Reversed). Khi không chắc (timeout) nó giữ nguyên và được đối soát — không bao giờ giả định.</p><div class="rs"><span class="pchip bD" data-r="P15">P15</span><span class="pchip bD" data-r="P17">P17</span><span class="pchip bD" data-r="P18">P18</span></div></div></div>
+        <div class="pr"><span class="pn">↩️</span><div><h5>9. Hội tụ — đã gửi hoặc đã hoàn</h5><p>Tiền luôn kết thúc ở trạng thái đã gửi đầy đủ hoặc đã hoàn đầy đủ — không bao giờ mắc kẹt nửa chừng. Tiền đang chuyển nằm an toàn trong tài khoản suspense.</p><div class="rs"><span class="pchip bD" data-r="P10">P10</span><span class="pchip bD" data-r="P12">P12</span></div></div></div>
+        <div class="pr"><span class="pn">🛡️</span><div><h5>10. Được ủy quyền — chỉ đúng người</h5><p>Chỉ chủ sở hữu đã xác thực — lý tưởng với yếu tố thứ hai (OTP) — mới có thể chuyển tiền; tài khoản nội bộ không bao giờ bị lộ.</p><div class="rs"><span class="pchip bE" data-r="P20">P20</span><span class="pchip bF" data-r="P23">P23</span><span class="pchip bF" data-r="P24">P24</span><span class="pchip bD" data-r="P19">P19</span></div></div></div>
+      </div>
+    </div>
+
+    <div class="band">
+      <h2><span class="ic">🧭</span> Luồng giao dịch — với mọi nhánh lỗi</h2>
+
+      <svg viewBox="0 0 1060 2090" role="img" aria-label="Money transfer decision flowchart">
+        <defs>
+          <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" fill="#7f93b5"/>
+          </marker>
+          <marker id="arrd" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" fill="#c98a2b"/>
+          </marker>
+        </defs>
+
+        <!-- ===== CONNECTORS (drawn first, under shapes) ===== -->
+        <!-- vertical spine -->
+        <path class="conn" d="M310,75 L310,102" marker-end="url(#arr)"/>
+        <path class="conn" d="M310,198 L310,232" marker-end="url(#arr)"/>
+        <path class="conn" d="M310,328 L310,370" marker-end="url(#arr)"/>
+        <path class="conn" d="M310,430 L310,472" marker-end="url(#arr)"/>
+        <path class="conn" d="M310,568 L310,584" marker-end="url(#arr)"/>
+        <path class="conn" d="M310,618 L310,642" marker-end="url(#arr)"/>
+        <path class="conn" d="M310,738 L310,772" marker-end="url(#arr)"/>
+        <path class="conn" d="M310,868 L310,910" marker-end="url(#arr)"/>
+        <path class="conn" d="M310,970 L310,1012" marker-end="url(#arr)"/>
+        <path class="conn" d="M310,1108 L310,1150" marker-end="url(#arr)"/>
+        <path class="conn" d="M310,1210 L310,1260" marker-end="url(#arr)"/>
+        <path class="conn" d="M310,1320 L310,1352" marker-end="url(#arr)"/>
+        <path class="conn" d="M310,1448 L310,1490" marker-end="url(#arr)"/>
+        <path class="conn" d="M310,1550 L310,1600" marker-end="url(#arr)"/>
+        <path class="conn" d="M310,1660 L310,1712" marker-end="url(#arr)"/>
+        <!-- right (No/other) branches -->
+        <path class="conn" d="M405,150 L655,150" marker-end="url(#arr)"/>
+        <path class="conn" d="M405,280 L655,280" marker-end="url(#arr)"/>
+        <path class="conn" d="M405,520 L655,520" marker-end="url(#arr)"/>
+        <path class="conn" d="M405,690 L655,690" marker-end="url(#arr)"/>
+        <path class="conn" d="M405,820 L655,820" marker-end="url(#arr)"/>
+        <path class="conn" d="M405,1060 L655,1060" marker-end="url(#arr)"/>
+        <path class="conn" d="M405,1400 L655,1400" marker-end="url(#arr)"/>
+        <!-- version retry loop back to debit -->
+        <path class="conn dash" d="M780,1034 L780,986 L442,986" marker-end="url(#arrd)"/>
+        <!-- external 3-way -->
+        <path class="conn" d="M245,1808 L170,1808 L170,1862" marker-end="url(#arr)"/>
+        <path class="conn" d="M310,1808 L310,1808 L470,1808 L470,1862" marker-end="url(#arr)"/>
+        <path class="conn" d="M375,1808 L860,1808 L860,1852" marker-end="url(#arr)"/>
+        <path class="conn" d="M860,1928 L860,1968" marker-end="url(#arr)"/>
+
+        <!-- ===== NODES ===== -->
+        <!-- START -->
+        <rect class="start" x="185" y="21" width="250" height="54" rx="27"/>
+        <text class="lbl" x="310" y="53" text-anchor="middle">① Người dùng xác nhận giao dịch</text>
+        <g class="pb" data-r="P1"><circle class="cA" cx="455" cy="48" r="12"/><text x="455" y="51" text-anchor="middle">P1</text></g>
+
+        <!-- D1 JWT -->
+        <polygon class="dec" points="310,102 405,150 310,198 215,150"/>
+        <text class="lblw" x="310" y="147" text-anchor="middle">Đã đăng nhập?</text>
+        <text class="lblw" x="310" y="163" text-anchor="middle" style="font-size:10.5px">(JWT hợp lệ)</text>
+        <text class="edge no" x="520" y="143" text-anchor="middle">Không</text>
+        <text class="edge yes" x="322" y="222" >Có</text>
+        <rect class="enderr" x="655" y="124" width="250" height="52" rx="12"/>
+        <text class="lbl" x="770" y="155" text-anchor="middle">401 · tự động đăng xuất</text>
+        <g class="pb" data-r="P20"><circle class="cE" cx="726" cy="192" r="12"/><text x="726" y="195" text-anchor="middle">P20</text></g>
+        <g class="pb" data-r="P22"><circle class="cE" cx="770" cy="192" r="12"/><text x="770" y="195" text-anchor="middle">P22</text></g>
+        <g class="pb" data-r="P21"><circle class="cE" cx="814" cy="192" r="12"/><text x="814" y="195" text-anchor="middle">P21</text></g>
+
+        <!-- D2 key -->
+        <polygon class="dec" points="310,232 405,280 310,328 215,280"/>
+        <text class="lblw" x="310" y="277" text-anchor="middle">Có Idempotency-</text>
+        <text class="lblw" x="310" y="293" text-anchor="middle">Key không?</text>
+        <text class="edge no" x="520" y="273" text-anchor="middle">Không</text>
+        <text class="edge yes" x="322" y="352">Có</text>
+        <rect class="enderr" x="655" y="254" width="250" height="52" rx="12"/>
+        <text class="lbl" x="770" y="285" text-anchor="middle">400 Yêu cầu không hợp lệ</text>
+        <g class="pb" data-r="P4"><circle class="cA" cx="770" cy="322" r="12"/><text x="770" y="325" text-anchor="middle">P4</text></g>
+
+        <!-- ISSUE OTP -->
+        <rect class="proc" x="180" y="370" width="260" height="60" rx="10"/>
+        <text class="lbl" x="310" y="395" text-anchor="middle" style="font-size:12px">Phát hành thử thách OTP</text>
+        <text class="lbl" x="310" y="412" text-anchor="middle" style="font-size:11px">ràng buộc + hash + TTL · kiểm tra số dư sơ bộ</text>
+        <g class="pb" data-r="P23"><circle class="cF" cx="200" cy="452" r="12"/><text x="200" y="455" text-anchor="middle">P23</text></g>
+        <g class="pb" data-r="P24"><circle class="cF" cx="244" cy="452" r="12"/><text x="244" y="455" text-anchor="middle">P24</text></g>
+        <g class="pb" data-r="P21"><circle class="cE" cx="376" cy="452" r="12"/><text x="376" y="455" text-anchor="middle">P21</text></g>
+        <g class="pb" data-r="P6"><circle class="cB" cx="420" cy="452" r="12"/><text x="420" y="455" text-anchor="middle">P6</text></g>
+
+        <!-- D3 OTP valid -->
+        <polygon class="dec" points="310,472 405,520 310,568 215,520"/>
+        <text class="lblw" x="310" y="512" text-anchor="middle">OTP hợp lệ?</text>
+        <text class="lblw" x="310" y="527" text-anchor="middle" style="font-size:9.5px">chưa dùng·chưa hết hạn</text>
+        <text class="lblw" x="310" y="539" text-anchor="middle" style="font-size:9.5px">số lần&lt;max·hash đúng</text>
+        <text class="edge no" x="520" y="513" text-anchor="middle">Không</text>
+        <text class="edge yes" x="322" y="590">Có</text>
+        <rect class="enderr" x="655" y="494" width="250" height="52" rx="12"/>
+        <text class="lbl" x="770" y="518" text-anchor="middle" style="font-size:12px">Từ chối 401 / khóa</text>
+        <text class="lbl" x="770" y="534" text-anchor="middle" style="font-size:10.5px">(mã sai → thử lại, attempts++)</text>
+        <g class="pb" data-r="P24"><circle class="cF" cx="770" cy="562" r="12"/><text x="770" y="565" text-anchor="middle">P24</text></g>
+
+        <!-- GATE band -->
+        <rect class="gateband" x="150" y="584" width="320" height="34" rx="9"/>
+        <text x="310" y="605" text-anchor="middle" style="font:800 11.5px 'Segoe UI';fill:#047857">🔒 OTP hợp lệ — tiền có thể di chuyển</text>
+        <text class="money" x="310" y="662" text-anchor="middle">💸 một giao dịch nguyên tử (P2) bắt đầu ↓</text>
+
+        <!-- D4 duplicate -->
+        <polygon class="dec" points="310,642 405,690 310,738 215,690"/>
+        <text class="lblw" x="310" y="686" text-anchor="middle">Trùng lặp?</text>
+        <text class="lblw" x="310" y="701" text-anchor="middle" style="font-size:9.5px">key đã Hoàn thành</text>
+        <text class="edge no" x="520" y="683" text-anchor="middle">Có</text>
+        <text class="edge yes" x="322" y="762">Không</text>
+        <rect class="endok" x="655" y="664" width="250" height="52" rx="12"/>
+        <text class="lbl" x="770" y="688" text-anchor="middle" style="font-size:12px">Trả về cache 200</text>
+        <text class="lbl" x="770" y="704" text-anchor="middle" style="font-size:10.5px">không tính phí lại</text>
+        <g class="pb" data-r="P3"><circle class="cA" cx="748" cy="732" r="12"/><text x="748" y="735" text-anchor="middle">P3</text></g>
+        <g class="pb" data-r="P1"><circle class="cA" cx="792" cy="732" r="12"/><text x="792" y="735" text-anchor="middle">P1</text></g>
+
+        <!-- D5 balance -->
+        <polygon class="dec" points="310,772 405,820 310,868 215,820"/>
+        <text class="lblw" x="310" y="817" text-anchor="middle">Số dư ≥</text>
+        <text class="lblw" x="310" y="833" text-anchor="middle">Số tiền?</text>
+        <text class="edge no" x="520" y="813" text-anchor="middle">Không</text>
+        <text class="edge yes" x="322" y="892">Có</text>
+        <rect class="enderr" x="655" y="794" width="250" height="52" rx="12"/>
+        <text class="lbl" x="770" y="818" text-anchor="middle" style="font-size:12px">422 Không đủ số dư</text>
+        <text class="lbl" x="770" y="834" text-anchor="middle" style="font-size:10.5px">hoàn tác · giải phóng key</text>
+        <g class="pb" data-r="P6"><circle class="cB" cx="748" cy="862" r="12"/><text x="748" y="865" text-anchor="middle">P6</text></g>
+        <g class="pb" data-r="P2"><circle class="cA" cx="792" cy="862" r="12"/><text x="792" y="865" text-anchor="middle">P2</text></g>
+
+        <!-- DEBIT -->
+        <rect class="proc" x="180" y="910" width="260" height="60" rx="10"/>
+        <text class="lbl" x="310" y="935" text-anchor="middle" style="font-size:12px">Ghi Nợ + Ghi Có tài khoản</text>
+        <text class="lbl" x="310" y="952" text-anchor="middle" style="font-size:11px">WHERE Version=@old · decimal</text>
+        <g class="pb" data-r="P5"><circle class="cB" cx="250" cy="992" r="12"/><text x="250" y="995" text-anchor="middle">P5</text></g>
+        <g class="pb" data-r="P7"><circle class="cB" cx="370" cy="992" r="12"/><text x="370" y="995" text-anchor="middle">P7</text></g>
+
+        <!-- D6 version -->
+        <polygon class="dec" points="310,1012 405,1060 310,1108 215,1060"/>
+        <text class="lblw" x="310" y="1057" text-anchor="middle">Xung đột</text>
+        <text class="lblw" x="310" y="1073" text-anchor="middle">Version?</text>
+        <text class="edge no" x="520" y="1053" text-anchor="middle">Có</text>
+        <text class="edge yes" x="322" y="1132">Không</text>
+        <rect class="endwarn" x="655" y="1034" width="250" height="52" rx="12"/>
+        <text class="lbl" x="770" y="1058" text-anchor="middle" style="font-size:12px">Thử lại (giới hạn)</text>
+        <text class="lbl" x="770" y="1074" text-anchor="middle" style="font-size:10.5px">đọc lại ↺ · 409 nếu hết lần</text>
+        <g class="pb" data-r="P5"><circle class="cB" cx="924" cy="1060" r="12"/><text x="924" y="1063" text-anchor="middle">P5</text></g>
+
+        <!-- LEDGER -->
+        <rect class="proc" x="180" y="1150" width="260" height="60" rx="10"/>
+        <text class="lbl" x="310" y="1175" text-anchor="middle" style="font-size:12px">Ghi sổ cái bút toán kép</text>
+        <text class="lbl" x="310" y="1192" text-anchor="middle" style="font-size:11px">Cặp Ghi Nợ + Ghi Có (+ Số dư sau)</text>
+        <g class="pb" data-r="P8"><circle class="cC" cx="250" cy="1232" r="12"/><text x="250" y="1235" text-anchor="middle">P8</text></g>
+        <g class="pb" data-r="P9"><circle class="cC" cx="370" cy="1232" r="12"/><text x="370" y="1235" text-anchor="middle">P9</text></g>
+
+        <!-- COMMIT -->
+        <rect class="proc" x="180" y="1260" width="260" height="60" rx="10"/>
+        <text class="lbl" x="310" y="1285" text-anchor="middle" style="font-size:12px">COMMIT</text>
+        <text class="lbl" x="310" y="1302" text-anchor="middle" style="font-size:11px">một giao dịch nguyên tử</text>
+        <g class="pb" data-r="P2"><circle class="cA" cx="310" cy="1342" r="12"/><text x="310" y="1345" text-anchor="middle">P2</text></g>
+
+        <!-- D7 interbank -->
+        <polygon class="dec" points="310,1352 405,1400 310,1448 215,1400"/>
+        <text class="lblw" x="310" y="1397" text-anchor="middle">Liên ngân</text>
+        <text class="lblw" x="310" y="1413" text-anchor="middle">hàng?</text>
+        <text class="edge no" x="520" y="1393" text-anchor="middle">Không</text>
+        <text class="edge yes" x="322" y="1472">Có</text>
+        <rect class="endok" x="655" y="1374" width="250" height="52" rx="12"/>
+        <text class="lbl" x="770" y="1405" text-anchor="middle">Kết quả: Hoàn thành ✓</text>
+        <g class="pb" data-r="P18"><circle class="cD" cx="770" cy="1442" r="12"/><text x="770" y="1445" text-anchor="middle">P18</text></g>
+
+        <!-- SUSPENSE -->
+        <rect class="proc" x="180" y="1490" width="260" height="60" rx="10"/>
+        <text class="lbl" x="310" y="1515" text-anchor="middle" style="font-size:12px">Ghi Nợ nguồn → SUSPENSE</text>
+        <text class="lbl" x="310" y="1532" text-anchor="middle" style="font-size:11px">Đang chờ · ghi Outbox</text>
+        <g class="pb" data-r="P10"><circle class="cD" cx="230" cy="1572" r="12"/><text x="230" y="1575" text-anchor="middle">P10</text></g>
+        <g class="pb" data-r="P17"><circle class="cD" cx="310" cy="1572" r="12"/><text x="310" y="1575" text-anchor="middle">P17</text></g>
+        <g class="pb" data-r="P13"><circle class="cD" cx="390" cy="1572" r="12"/><text x="390" y="1575" text-anchor="middle">P13</text></g>
+
+        <!-- WORKER -->
+        <rect class="proc" x="180" y="1600" width="260" height="60" rx="10"/>
+        <text class="lbl" x="310" y="1625" text-anchor="middle" style="font-size:12px">Worker Outbox →</text>
+        <text class="lbl" x="310" y="1642" text-anchor="middle" style="font-size:11px">ngân hàng ngoài (idempotent)</text>
+        <g class="pb" data-r="P14"><circle class="cD" cx="310" cy="1682" r="12"/><text x="310" y="1685" text-anchor="middle">P14</text></g>
+
+        <!-- D8 external -->
+        <polygon class="dec" points="310,1712 405,1760 310,1808 215,1760"/>
+        <text class="lblw" x="310" y="1757" text-anchor="middle">Ngân hàng ngoài</text>
+        <text class="lblw" x="310" y="1772" text-anchor="middle">kết quả?</text>
+        <text class="edge yes" x="150" y="1800" text-anchor="middle">Thành công</text>
+        <text class="edge no" x="470" y="1800" text-anchor="middle">Thất bại</text>
+        <text class="edge" x="640" y="1798" text-anchor="middle" style="fill:#b45309">Hết thời gian</text>
+
+        <rect class="endok" x="60" y="1862" width="220" height="54" rx="12"/>
+        <text class="lbl" x="170" y="1886" text-anchor="middle" style="font-size:12px">Đã chuyển ✓</text>
+        <text class="lbl" x="170" y="1902" text-anchor="middle" style="font-size:10.5px">→ EXTERNAL_OUT</text>
+        <g class="pb" data-r="P11"><circle class="cD" cx="150" cy="1938" r="12"/><text x="150" y="1941" text-anchor="middle">P11</text></g>
+        <g class="pb" data-r="P12"><circle class="cD" cx="194" cy="1938" r="12"/><text x="194" y="1941" text-anchor="middle">P12</text></g>
+
+        <rect class="enderr" x="360" y="1862" width="220" height="54" rx="12"/>
+        <text class="lbl" x="470" y="1886" text-anchor="middle" style="font-size:12px">Đã hoàn ↩</text>
+        <text class="lbl" x="470" y="1902" text-anchor="middle" style="font-size:10.5px">hoàn về nguồn</text>
+        <g class="pb" data-r="P12"><circle class="cD" cx="470" cy="1938" r="12"/><text x="470" y="1941" text-anchor="middle">P12</text></g>
+
+        <rect class="endwarn" x="750" y="1852" width="220" height="52" rx="12"/>
+        <text class="lbl" x="860" y="1876" text-anchor="middle" style="font-size:12px">Đang chờ</text>
+        <text class="lbl" x="860" y="1892" text-anchor="middle" style="font-size:10.5px">không đoán mò</text>
+        <g class="pb" data-r="P15"><circle class="cD" cx="936" cy="1878" r="12"/><text x="936" y="1881" text-anchor="middle">P15</text></g>
+
+        <rect class="endok" x="750" y="1968" width="220" height="54" rx="12"/>
+        <text class="lbl" x="860" y="1992" text-anchor="middle" style="font-size:12px">Đối soát</text>
+        <text class="lbl" x="860" y="2008" text-anchor="middle" style="font-size:10.5px">truy vấn lại → xử lý/hoàn</text>
+        <g class="pb" data-r="P16"><circle class="cD" cx="936" cy="1994" r="12"/><text x="936" y="1997" text-anchor="middle">P16</text></g>
+      </svg>
+
+      <div style="margin-top:6px;font-size:12px;color:#5c6b82">🟩 xanh = an toàn/thành công · 🟥 đỏ = bị từ chối &amp; dừng · 🟨 vàng = thử lại / đang chờ &nbsp;•&nbsp; 🙈 SUSPENSE / EXTERNAL_OUT bị ẩn khỏi <code>GET /accounts</code> <button class="pchip bD" style="border:none;color:#fff;cursor:pointer;border-radius:999px;padding:1px 8px;font-size:11px;font-weight:800" data-r="P19">P19</button></div>
+    </div>
+
+    <!-- THREATS -->
+    <div class="band">
+      <h2><span class="ic">⚔️</span> Những gì bị chặn — nguy hiểm → quy tắc ngăn chặn</h2>
+      <div id="threats"></div>
+    </div>
+
+    <!-- FULL LEGEND -->
+    <div class="band">
+      <h2><span class="ic">🛡️</span> Tất cả 24 quy tắc bảo vệ — nhấp để xem giải thích</h2>
+      <div class="legend" id="legend"></div>
+    </div>
+  </div>
+
+  <div class="foot"><b>Cách đọc:</b> đi theo mũi tên từ trên xuống dưới; tại mỗi hình thoi, mũi tên sang bên là trường hợp lỗi/khác và quy tắc xử lý nó. Tiền chỉ di chuyển sau cổng OTP, bên trong một giao dịch nguyên tử (P2). P23/P24 đang được lên kế hoạch; P1–P22 đang hoạt động &amp; đã kiểm tra (16/16).</div>
+</div>
+
+<div id="explain"><span class="x" onclick="document.getElementById('explain').style.display='none'">✕</span><p class="hint">👆 Nhấp bất kỳ huy hiệu <b>P</b> màu nào trong lưu đồ (hoặc quy tắc bên dưới) để xem giải thích đầy đủ tại đây.</p></div>
+
+<script>
+const CAT={A:'bA',B:'bB',C:'bC',D:'bD',E:'bE',F:'bF'};
+const P={
+ P1:['A','Idempotency-Key + ràng buộc UNIQUE (INSERT-first)','Cùng một giao dịch logic, gửi hai lần (thử lại / nhấp đúp / hai yêu cầu song song), chỉ bị tính phí một lần. Client gửi một key; PRIMARY KEY của DB trên IdempotencyRecords.Key là trọng tài — INSERT thứ hai thất bại, trả về kết quả đã cache thay vì chuyển tiền lại. Không có "SELECT rồi INSERT" (có cửa sổ race). TransferMoneyCommandHandler.'],
+ P2:['A','Giao dịch đơn — claim + thực thi + hoàn thành','Việc claim key, chuyển tiền và đánh dấu Completed đều xảy ra trong một commit nguyên tử. Key chỉ tồn tại ở trạng thái Completed — lỗi "key mắc kẹt InProgress" cũ bị loại bỏ hoàn toàn. Lỗi nghiệp vụ hoàn tác claim, để lần thử lại được sửa hoạt động.'],
+ P3:['A','Replay cache nhanh','Thử lại một key đã hoàn thành trả về chính xác cùng phản hồi đã lưu (ServedFromCache=true, cùng transferId) — xác định, không tính phí lại dù số dư đã thay đổi.'],
+ P4:['A','Từ chối thiếu Idempotency-Key','Server không tin client — không có key → 400, từ chối xử lý.'],
+ P5:['B','Token đồng thời lạc quan (Account.Version) + thử lại có giới hạn','Bảo vệ chống cập nhật bị mất — hai giao dịch khác key cùng tác động vào một tài khoản, cả hai đọc số dư cũ và cả hai trừ (gây thâm hụt). EF thêm WHERE Version=@old vào UPDATE; ghi đè lỗi thời sẽ throw, handler đọc lại và thử lại. Hết lần thử → 409 (không vòng lặp vô hạn). Dùng token int portable (hoạt động trên Postgres và SQLite).'],
+ P6:['B','Kiểm tra số dư trước khi ghi nợ','Không thâm hụt — Balance < Amount → 422 InsufficientFunds, throw trước khi ghi bất kỳ thứ gì nên không có gì được lưu.'],
+ P7:['B','Kiểu tiền decimal','Toán tiền chính xác — không bao giờ float/double (làm tròn sai, ví dụ 0.1+0.2≠0.3).'],
+ P8:['C','Sổ cái bút toán kép (bất biến / chỉ thêm)','Mỗi giao dịch là một cặp Ghi Nợ + Ghi Có trong LedgerEntries chỉ được INSERT, không bao giờ sửa/xóa. Đảm bảo bảo toàn (tổng hiệu ký = 0) và cung cấp đường dẫn kiểm toán đầy đủ. Xác minh tại runtime: tổng ký sổ cái = 0, tổng tất cả tài khoản giữ nguyên 1000.00.'],
+ P9:['C','BalanceAfter trên mỗi bút toán','Mỗi bút toán ghi số dư tài khoản ngay sau đó — dữ liệu kiểm toán để tái tạo/truy vết lịch sử.'],
+ P10:['D','Tài khoản suspense','Tiền "đang chuyển" cho giao dịch liên ngân hàng nằm trong tài khoản giữ thực sự — luôn có thể đếm; sau khi thanh toán sẽ về 0.'],
+ P11:['D','Tài khoản đối ứng EXTERNAL_OUT','Khi tiền thực sự rời hệ thống đến ngân hàng ngoài, nó được ghi có vào tài khoản hệ thống để sổ cái cân bằng (bút toán kép không bao giờ bị phá vỡ).'],
+ P12:['D','Saga + giao dịch bù trừ (hoàn tiền)','Giao dịch liên ngân hàng được chia thành nhiều bước; nếu ngân hàng ngoài từ chối, hoàn tiền tự động trả về nguồn. Tiền luôn hội tụ về đã gửi hoặc đã hoàn — không bao giờ nửa chừng. (InterbankSettlement).'],
+ P13:['D','Outbox giao dịch','Ý định "gọi ngân hàng ngoài tiếp theo" được ghi trong cùng giao dịch với ghi nợ. Nếu tiến trình crash, worker nền đọc lại outbox và hoàn thành — lệnh không bao giờ bị mất.'],
+ P14:['D','Xử lý outbox idempotent','Chạy lại worker không thanh toán hai lần — được bảo vệ bởi OutboxStatus và chỉ hành động khi Transfer.Status == Pending. Đã xác minh: xử lý hai lần giữ nguyên số dư/sổ cái.'],
+ P15:['D','"Không đoán mò" khi timeout / Unknown','Nếu kết quả ngân hàng ngoài không rõ (timeout), giao dịch ở lại Pending — không bao giờ giả định thành công hay thất bại.'],
+ P16:['D','Đối soát (lưới an toàn)','POST /admin/reconcile quét các giao dịch Pending bị kẹt, truy vấn lại ngân hàng ngoài, và xử lý hoặc hoàn tiền — lưới an toàn cuối cùng để không có gì bị kẹt mãi. Đã xác minh: giao dịch timeout giải quyết thành Completed sau khi đối soát.'],
+ P17:['D','State machine tường minh','Giao dịch không bao giờ là boolean "xong/chưa xong" mơ hồ — nó là Pending → Completed / Reversed; mọi thất bại đều có giải pháp xác định.'],
+ P18:['D','Endpoint truy vấn trạng thái','GET /transfers/{id} cho phép quan sát trạng thái thực tại bất kỳ thời điểm nào (observability).'],
+ P19:['D','Ẩn tài khoản hệ thống khỏi API khách hàng','SUSPENSE / EXTERNAL_OUT bị lọc khỏi GET /accounts để không ai vô tình chuyển tiền đến/từ tài khoản kế toán nội bộ.'],
+ P20:['E','Xác thực JWT ([Authorize])','Chỉ người dùng đã xác thực mới có thể gọi /transfers và /accounts. (Xác thực, không phải ủy quyền theo tài khoản — khoảng trống đã biết: chứng minh "đã đăng nhập", không phải "tài khoản của bạn".)'],
+ P21:['E','Băm mật khẩu PBKDF2','Mật khẩu không bao giờ lưu dạng plaintext; cùng bộ băm được tái sử dụng để băm mã OTP.'],
+ P22:['E','401 → tự động đăng xuất trên frontend','Phản hồi 401 khiến interceptor frontend hủy phiên và đăng xuất người dùng.'],
+ P23:['F','Yếu tố thứ hai OTP (kế hoạch)','Giao dịch được xác nhận cần mã dùng một lần ngoài kênh trước khi tiền di chuyển. Chặn giao dịch trái phép ngay cả khi có JWT hợp lệ.'],
+ P24:['F','Ràng buộc OTP / dùng một lần / hết hạn / khóa (kế hoạch)','Mã được ràng buộc với (key, from, to, amount), băm khi lưu, hợp lệ trong TTL ngắn, dùng được một lần, và bị khóa sau N lần nhập sai — chống replay.']
+};const BLOCKS={
+ P1:'Nhấp đúp / thử lại / hai yêu cầu song song với CÙNG key bị tính phí hai lần.',
+ P2:'Crash hoặc lỗi giữa chừng khiến tiền đã chuyển nhưng key "bị kẹt" — giao dịch hoàn thành nửa vời.',
+ P3:'Yêu cầu thử lại chạy lại giao dịch và trừ tiền lần nữa.',
+ P4:'Client bỏ qua key để lách qua idempotency.',
+ P5:'Hai giao dịch KHÁC NHAU trên CÙNG tài khoản tại cùng thời điểm đều đọc số dư cũ và đều trừ (mất cập nhật → thâm hụt).',
+ P6:'Chi tiêu nhiều hơn số dư (thâm hụt / số dư âm).',
+ P7:'Lỗi làm tròn tiền từ phép toán float (0.1+0.2≠0.3).',
+ P8:'Tiền bị ghi nợ nhưng không ghi có (hoặc ngược lại) — tiền âm thầm được tạo, mất, hoặc không truy vết được.',
+ P9:'Mất khả năng kiểm toán / tái tạo số dư đến từ đâu.',
+ P10:'Tiền liên ngân hàng "đang chuyển" trở nên không thể truy vết / trôi nổi.',
+ P11:'Sổ sách mất cân bằng khi tiền rời hệ thống.',
+ P12:'Tiền rời nguồn nhưng không đến nơi — bị kẹt/mất — khi ngân hàng ngoài từ chối.',
+ P13:'Crash tiến trình làm mất lệnh "gọi ngân hàng ngoài".',
+ P14:'Worker chạy hai lần và thanh toán/xử lý hai lần.',
+ P15:'Đoán sai khi timeout → thanh toán hai lần hoặc hoàn tiền sai.',
+ P16:'Giao dịch bị kẹt ở Pending mãi mãi.',
+ P17:'Trạng thái "có xong không?" mơ hồ không có giải pháp xác định.',
+ P18:'Không thể xem trạng thái thực của giao dịch.',
+ P19:'Vô tình chuyển tiền đến/từ tài khoản kế toán nội bộ.',
+ P20:'Người gọi chưa xác thực chuyển tiền.',
+ P21:'Mật khẩu / OTP bị đánh cắp từ plaintext đã lưu.',
+ P22:'Tiếp tục sử dụng phiên đã hết hạn hoặc không hợp lệ.',
+ P23:'Giao dịch trái phép chỉ với JWT bị đánh cắp (không có yếu tố thứ hai).',
+ P24:'Replay OTP bị bắt, tái sử dụng nó, hoặc dùng cho số tiền khác.'
+};const THREATS=[
+ ['🖱️ Nhấp đúp / thử lại / hai yêu cầu song song với CÙNG key → tính phí hai lần',['P1','P2','P3','P4']],
+ ['🔀 Hai giao dịch KHÁC NHAU trên CÙNG tài khoản cùng lúc → thâm hụt (mất cập nhật)',['P5']],
+ ['💰 Chuyển nhiều hơn số dư → số dư âm',['P6']],
+ ['🧮 Lỗi làm tròn tiền (phép toán float)',['P7']],
+ ['⚖️ Tiền bị ghi nợ nhưng không ghi có — giao dịch hoàn thành nửa vời / tiền được tạo hoặc mất',['P2','P8','P9']],
+ ['💥 Tiến trình crash giữa giao dịch → lệnh "gọi ngân hàng ngoài" bị mất',['P13','P14']],
+ ['⏳ Ngân hàng ngoài timeout → không biết đã thanh toán chưa (đoán = thanh toán hai lần hoặc hoàn sai)',['P15','P16']],
+ ['🚫 Ngân hàng ngoài từ chối → tiền đã rời nguồn sẽ bị mất',['P10','P11','P12']],
+ ['🕵️ Phiên bị đánh cắp / không có yếu tố thứ hai → giao dịch trái phép',['P20','P23','P24']],
+ ['♻️ Replay / tái sử dụng OTP, hoặc dùng cho số tiền khác',['P24']],
+ ['🏦 Chuyển tiền đến/từ tài khoản kế toán nội bộ (SUSPENSE/EXTERNAL_OUT)',['P19']],
+ ['🔓 Phiên hết hạn còn sử dụng · mật khẩu lưu plaintext',['P21','P22']]
+];const GROUPS={A:'A · Chống tính phí hai lần (idempotency)',B:'B · Toàn vẹn & đồng thời',C:'C · Kế toán (kiểm toán)',D:'D · Chịu lỗi (liên ngân hàng)',E:'E · Kiểm soát truy cập',F:'F · Ký giao dịch (2FA) — MỚI'};
+// build legend
+const leg=document.getElementById('legend');
+const order=['A','B','C','D','E','F'];
+order.forEach(g=>{
+  const box=document.createElement('div');box.className='lgroup';
+  box.innerHTML='<h4 style="color:var(--x)">'+GROUPS[g]+'</h4>';
+  Object.keys(P).forEach(k=>{ if(P[k][0]!==g)return;
+    const r=document.createElement('div');r.className='rule';r.id='L'+k;r.dataset.r=k;
+    r.innerHTML='<span class="pchip '+CAT[g]+'">'+k+'</span><div><b>'+P[k][1]+'</b><small>'+P[k][2]+'</small><div class="blk">🛡️ <b>Chặn:</b> '+BLOCKS[k]+'</div></div>';
+    box.appendChild(r);
+  });
+  leg.appendChild(box);
+});
+// explain panel
+const panel=document.getElementById('explain');
+function show(k){
+  const d=P[k]; if(!d)return;
+  panel.style.display='block';
+  panel.innerHTML='<span class="x" onclick="document.getElementById(\'explain\').style.display=\'none\'">✕</span>'+
+    '<span class="pt '+CAT[d[0]]+'">'+k+'</span><h4>'+d[1]+'</h4><p>'+d[2]+'</p><div class="blk">🛡️ <b>Chặn:</b> '+BLOCKS[k]+'</div>';
+  const li=document.getElementById('L'+k);
+  if(li){li.scrollIntoView({behavior:'smooth',block:'center'});li.classList.remove('flash');void li.offsetWidth;li.classList.add('flash');}
+}
+// threats table
+const tc=document.getElementById('threats');
+THREATS.forEach(function(t){
+  const row=document.createElement('div');row.className='threat';
+  row.innerHTML='<span class="stopby">BLOCKED BY</span><div class="tx">'+t[0]+'</div><div class="rules">'+
+    t[1].map(function(k){return '<span class="pchip '+CAT[P[k][0]]+'" data-r="'+k+'">'+k+'</span>';}).join('')+'</div>';
+  tc.appendChild(row);
+});
+document.querySelectorAll('[data-r]').forEach(el=>el.addEventListener('click',()=>show(el.dataset.r)));
+</script>
+</body>
+</html>

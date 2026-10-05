@@ -1,0 +1,782 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Scaling a System from Zero to Millions</title>
+<style>
+:root{
+  --bg:#f6f8fb;--card:#ffffff;--ink:#1c2533;--muted:#5d6b80;--line:#c9d3e0;--accent:#3b7dd8;
+  --green:#2e9e5b;--blue:#3b7dd8;--orange:#e08a1e;--purple:#8a5cd6;--teal:#1aa6a6;--red:#d64545;
+  --note:#eef4ff;--warn:#fff4e5;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){--bg:#0f141b;--card:#171e28;--ink:#e6ebf2;--muted:#9aa8bb;--line:#33404f;--note:#16263d;--warn:#33250f}
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.65 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+header{padding:48px 16px 24px;text-align:center;max-width:980px;margin:auto}
+header h1{margin:0 0 8px;font-size:2.1rem}
+header p{color:var(--muted);margin:0}
+nav{position:sticky;top:0;z-index:5;background:var(--card);border-bottom:1px solid var(--line);padding:8px 16px;overflow-x:auto;white-space:nowrap}
+nav a{display:inline-block;margin:2px 4px;padding:4px 10px;border-radius:999px;font-size:.85rem;color:var(--ink);text-decoration:none;border:1px solid var(--line)}
+nav a:hover{background:var(--accent);color:#fff;border-color:var(--accent)}
+main{max-width:980px;margin:auto;padding:0 16px 64px}
+section{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:24px;margin:28px 0;scroll-margin-top:60px}
+section h2{margin:0 0 4px;font-size:1.5rem}
+section h2 .num{display:inline-block;background:var(--accent);color:#fff;border-radius:8px;padding:0 10px;margin-right:8px;font-size:1.1rem}
+.tag{color:var(--muted);margin:0 0 14px;font-style:italic}
+h3{margin:22px 0 6px;font-size:1.05rem}
+.diagram{margin:16px 0;padding:10px;border:1px dashed var(--line);border-radius:10px;overflow-x:auto}
+.diagram figcaption{font-size:.85rem;color:var(--muted);text-align:center;margin-top:4px}
+svg{width:100%;height:auto;min-width:560px;display:block}
+.note{background:var(--note);border-left:4px solid var(--accent);padding:10px 14px;border-radius:6px;margin:14px 0}
+.warn{background:var(--warn);border-left:4px solid var(--orange);padding:10px 14px;border-radius:6px;margin:14px 0}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px}
+.card{border:1px solid var(--line);border-radius:10px;padding:12px 14px}
+.card h4{margin:0 0 4px}
+.pro{color:var(--green)} .con{color:var(--red)}
+table{border-collapse:collapse;width:100%;font-size:.92rem;margin:10px 0}
+th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}
+th{background:var(--note)}
+code{background:var(--note);padding:1px 6px;border-radius:4px;font-size:.9em}
+ul,ol{padding-left:22px} li{margin:3px 0}
+/* SVG styles */
+svg text{font:13px system-ui,sans-serif;fill:var(--ink);text-anchor:middle}
+svg .s{font-size:11px;fill:var(--muted)}
+svg .b{font-weight:700}
+svg .lft{text-anchor:start}
+svg .w{fill:#fff}
+svg rect,svg path,svg line,svg circle,svg ellipse{stroke-width:1.6}
+.usr{fill:rgba(120,135,155,.15);stroke:#78879b}
+.web{fill:rgba(46,158,91,.2);stroke:var(--green)}
+.db{fill:rgba(59,125,216,.2);stroke:var(--blue)}
+.cch{fill:rgba(224,138,30,.22);stroke:var(--orange)}
+.mq{fill:rgba(138,92,214,.22);stroke:var(--purple)}
+.cdn{fill:rgba(26,166,166,.2);stroke:var(--teal)}
+.bad{fill:rgba(214,69,69,.18);stroke:var(--red)}
+.grp{fill:none;stroke:var(--muted);stroke-dasharray:6 4}
+.a{fill:none;stroke:var(--blue);stroke-width:2;marker-end:url(#ar)}
+.ag{fill:none;stroke:var(--green);stroke-width:2;marker-end:url(#ar)}
+.ao{fill:none;stroke:var(--orange);stroke-width:2;marker-end:url(#ar)}
+.ap{fill:none;stroke:var(--purple);stroke-width:2;marker-end:url(#ar)}
+.ar{fill:none;stroke:var(--red);stroke-width:2;marker-end:url(#ar)}
+.ak{fill:none;stroke:var(--muted);stroke-width:2;marker-end:url(#ar)}
+.dash{stroke-dasharray:6 4}
+.step{fill:var(--accent);stroke:none} .stepn{fill:#fff;font-weight:700;font-size:11px}
+/* icons & motion */
+.badge circle{stroke:var(--card);stroke-width:2.5}
+.badge use{pointer-events:none}
+use{stroke:#fff;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+path.dash{animation:flow 1.1s linear infinite}
+@keyframes flow{to{stroke-dashoffset:-20}}
+@media (prefers-reduced-motion:reduce){path.dash{animation:none}}
+section{transition:transform .2s,box-shadow .2s}
+section:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,.12)}
+section h2 .emo{margin-right:8px}
+.hero-icons{display:flex;justify-content:center;flex-wrap:wrap;gap:14px;margin:0 0 18px}
+.hero-icons span,.legend .chip i{display:inline-flex;align-items:center;justify-content:center;width:46px;height:46px;border-radius:14px;box-shadow:0 4px 12px rgba(0,0,0,.18)}
+.hero-icons svg{width:26px;height:26px;min-width:0}
+.legend{display:flex;flex-wrap:wrap;gap:8px 14px;margin:10px 0}
+.legend .chip{display:inline-flex;align-items:center;gap:8px;font-size:.85rem;color:var(--muted)}
+.legend .chip i{width:30px;height:30px;border-radius:9px;box-shadow:none}
+.legend .chip svg{width:18px;height:18px;min-width:0}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs><marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="context-stroke" stroke="none"/></marker></defs>
+  <g stroke="#fff" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+  <symbol id="i-server" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="7" rx="2"/><rect x="3" y="14" width="18" height="7" rx="2"/><circle cx="7" cy="6.5" r=".9" fill="#fff"/><circle cx="7" cy="17.5" r=".9" fill="#fff"/><path d="M12 6.5h6M12 17.5h6"/></symbol>
+  <symbol id="i-db" viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5"/><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></symbol>
+  <symbol id="i-cache" viewBox="0 0 24 24"><path d="M13 2L4 14h7l-1 8 9-12h-7z"/></symbol>
+  <symbol id="i-mail" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></symbol>
+  <symbol id="i-dns" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3.5 3 3.5 15 0 18M12 3c-3.5 3-3.5 15 0 18"/></symbol>
+  <symbol id="i-cloud" viewBox="0 0 24 24"><path d="M7 18a4 4 0 010-8 5 5 0 019.6-1A4.5 4.5 0 0117 18z"/><path d="M12 11l-2 3h4l-2 3"/></symbol>
+  <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7"/></symbol>
+  <symbol id="i-lb" viewBox="0 0 24 24"><circle cx="12" cy="5" r="2.5"/><path d="M12 7.5v4M12 11.5L5 16.5M12 11.5l7 5"/><circle cx="5" cy="19" r="2.5"/><circle cx="19" cy="19" r="2.5"/></symbol>
+  <symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></symbol>
+  <symbol id="i-chart" viewBox="0 0 24 24"><path d="M4 20V4M4 20h16M8 16v-4M12 16V8M16 16v-6"/></symbol>
+  <symbol id="i-code" viewBox="0 0 24 24"><path d="M8 7l-5 5 5 5M16 7l5 5-5 5"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M4 12l5 5L20 6"/></symbol>
+  <symbol id="i-deploy" viewBox="0 0 24 24"><path d="M12 20V6M6 12l6-6 6 6"/></symbol>
+  </g>
+</svg>
+
+<header>
+  <div class="hero-icons" id="heroIcons"></div>
+  <h1>Scaling a System from Zero to Millions of Users</h1>
+  <p>A step-by-step walkthrough: every time the system hits a limit, we add one building block. Each section has a plain explanation, deeper details, trade-offs, and a diagram.</p>
+</header>
+
+<nav>
+  <a href="#overview">Overview</a><a href="#s1">1 Single server</a><a href="#s2">2 Database tier</a><a href="#s3">3 SQL vs NoSQL</a>
+  <a href="#s4">4 Vertical/Horizontal</a><a href="#s5">5 Load balancer</a><a href="#s6">6 Replication</a><a href="#s7">7 Cache</a>
+  <a href="#s8">8 CDN</a><a href="#s9">9 Stateless</a><a href="#s10">10 Data centers</a><a href="#s11">11 Message queue</a>
+  <a href="#s12">12 Logging/Metrics</a><a href="#s13">13 Sharding</a><a href="#summary">Summary</a>
+</nav>
+
+<main>
+
+<!-- ============ OVERVIEW ============ -->
+<section id="overview">
+  <h2>Overview: the final architecture</h2>
+  <p class="tag">All the pieces together. Read it left to right: user → DNS/CDN → load balancer → web tier → cache / queue / databases.</p>
+  <figure class="diagram">
+  <svg viewBox="0 0 1100 650" role="img" aria-label="Overview of the complete architecture">
+    <!-- user -->
+    <rect class="usr" x="20" y="250" width="130" height="90" rx="10"/>
+    <text x="85" y="278" class="b">User</text><text x="85" y="298" class="s">Web browser</text><text x="85" y="314" class="s">Mobile app</text>
+    <!-- DNS -->
+    <rect class="cdn" x="170" y="70" width="110" height="46" rx="8"/><text x="225" y="98" class="b">DNS</text>
+    <path class="a" d="M70 250 L185 116"/><text x="95" y="170" class="s lft">domain → IP</text>
+    <!-- CDN -->
+    <rect class="cdn" x="170" y="500" width="110" height="46" rx="8"/><text x="225" y="522" class="b">CDN</text><text x="225" y="538" class="s">static files</text>
+    <path class="a" d="M70 340 L185 500"/><text x="90" y="430" class="s lft">JS / CSS / images</text>
+    <!-- LB -->
+    <rect class="web" x="260" y="270" width="110" height="60" rx="8"/><text x="315" y="296" class="b">Load</text><text x="315" y="313" class="b">balancer</text>
+    <path class="a" d="M150 300 L260 300"/>
+    <!-- web tier -->
+    <rect class="grp" x="430" y="150" width="180" height="330" rx="12"/>
+    <text x="520" y="172" class="s b">WEB TIER (stateless, auto-scale)</text>
+    <rect class="web" x="450" y="190" width="140" height="50" rx="8"/><text x="520" y="220">Server 1</text>
+    <rect class="web" x="450" y="270" width="140" height="50" rx="8"/><text x="520" y="300">Server 2</text>
+    <rect class="web" x="450" y="350" width="140" height="50" rx="8"/><text x="520" y="380">Server N</text>
+    <text x="520" y="430" class="s">add / remove servers</text><text x="520" y="445" class="s">based on traffic</text>
+    <path class="a" d="M370 300 L450 215"/><path class="a" d="M370 300 L450 295"/><path class="a" d="M370 300 L450 375"/>
+    <!-- cache -->
+    <rect class="cch" x="700" y="110" width="130" height="50" rx="8"/><text x="765" y="132" class="b">Cache</text><text x="765" y="148" class="s">Redis / Memcached</text>
+    <path class="ao" d="M590 200 L700 140"/>
+    <!-- queue -->
+    <rect class="mq" x="700" y="215" width="130" height="50" rx="8"/><text x="765" y="237" class="b">Message queue</text><text x="765" y="253" class="s">async jobs</text>
+    <path class="ap" d="M590 260 L700 240"/>
+    <rect class="mq" x="930" y="215" width="130" height="50" rx="8"/><text x="995" y="237" class="b">Workers</text><text x="995" y="253" class="s">consume jobs</text>
+    <path class="ap" d="M830 240 L930 240"/>
+    <!-- nosql -->
+    <rect class="db" x="930" y="95" width="130" height="50" rx="8"/><text x="995" y="117" class="b">NoSQL</text><text x="995" y="133" class="s">sessions, big data</text>
+    <path class="ap" d="M995 215 L995 145"/>
+    <path class="a" d="M520 150 L520 50 L995 50 L995 95"/><text x="760" y="42" class="s">session / state read-write</text>
+    <!-- DBs -->
+    <rect class="db" x="740" y="330" width="130" height="55" rx="10"/><text x="805" y="354" class="b">Master DB</text><text x="805" y="370" class="s">writes</text>
+    <rect class="db" x="680" y="440" width="120" height="50" rx="10"/><text x="740" y="462" class="b">Slave DB 1</text><text x="740" y="478" class="s">reads</text>
+    <rect class="db" x="820" y="440" width="120" height="50" rx="10"/><text x="880" y="462" class="b">Slave DB 2</text><text x="880" y="478" class="s">reads</text>
+    <path class="a" d="M590 350 L740 355"/><text x="655" y="343" class="s">write</text>
+    <path class="ag" d="M590 395 L680 455"/><text x="600" y="430" class="s lft">read</text>
+    <path class="a dash" d="M775 385 L745 440"/><path class="a dash" d="M835 385 L875 440"/>
+    <text x="960" y="415" class="s lft">replication</text>
+    <rect class="grp" x="660" y="315" width="300" height="190" rx="12"/><text x="960" y="340" class="s lft" style="display:none">x</text>
+    <text x="810" y="522" class="s">DATA TIER (each DB sharded by user_id)</text>
+    <!-- DC note -->
+    <rect class="grp" x="10" y="8" width="210" height="34" rx="8"/><text x="115" y="30" class="s">whole stack duplicated in DC2 (geoDNS)</text>
+    <!-- tools -->
+    <rect class="usr" x="430" y="575" width="630" height="44" rx="8"/>
+    <text x="745" y="602" class="b">Tools: Logging · Metrics · Monitoring · Automation (CI/CD)</text>
+    <path class="ak dash" d="M520 480 L520 575"/>
+  </svg>
+  <figcaption>Figure A — Complete system. Blue = main requests, green = reads, orange = cache, purple = async/queue.</figcaption>
+  </figure>
+  <div class="legend" id="legend"></div>
+
+  <h3>The scaling journey: problem → solution</h3>
+  <table>
+    <tr><th>#</th><th>Problem</th><th>Building block</th></tr>
+    <tr><td>1</td><td>Everything on one box</td><td>Single server (start here)</td></tr>
+    <tr><td>2</td><td>Web and DB compete for resources</td><td>Separate web tier and data tier</td></tr>
+    <tr><td>3</td><td>One server = single point of failure / overload</td><td>Load balancer + more web servers</td></tr>
+    <tr><td>4</td><td>DB is a single point of failure, reads too heavy</td><td>Master-slave replication</td></tr>
+    <tr><td>5</td><td>Repeated slow DB reads</td><td>Cache tier</td></tr>
+    <tr><td>6</td><td>Static files are slow for far-away users</td><td>CDN</td></tr>
+    <tr><td>7</td><td>Sessions stuck on one server</td><td>Stateless web tier + shared store</td></tr>
+    <tr><td>8</td><td>Global users, region outage</td><td>Multiple data centers + geoDNS</td></tr>
+    <tr><td>9</td><td>Slow tasks block requests; tight coupling</td><td>Message queue + workers</td></tr>
+    <tr><td>10</td><td>Can't see or operate a big system</td><td>Logging, metrics, automation</td></tr>
+    <tr><td>11</td><td>One database can't hold all the data</td><td>Sharding (+ NoSQL for some data)</td></tr>
+  </table>
+</section>
+
+<!-- ============ 1 ============ -->
+<section id="s1">
+  <h2><span class="num">1</span>Single server setup</h2>
+  <p class="tag">Start simple: web app, database and cache all live on one machine.</p>
+  <p>Every system starts here. It is cheap, fast to build and easy to reason about. The interesting part is the <b>request flow</b>: what happens between typing a URL and seeing a page.</p>
+  <figure class="diagram">
+  <svg viewBox="0 0 760 270">
+    <rect class="usr" x="20" y="60" width="170" height="150" rx="10"/><text x="105" y="82" class="b">User</text>
+    <rect class="w" x="40" y="100" width="130" height="36" rx="6" style="fill:var(--card);stroke:var(--line)"/><text x="105" y="123">Web browser</text>
+    <rect x="40" y="150" width="130" height="36" rx="6" style="fill:var(--card);stroke:var(--line)"/><text x="105" y="173">Mobile app</text>
+    <rect class="cdn" x="310" y="10" width="140" height="50" rx="8"/><text x="380" y="40" class="b">DNS server</text>
+    <rect class="grp" x="520" y="60" width="220" height="150" rx="10"/>
+    <rect class="web" x="540" y="90" width="180" height="100" rx="8"/><text x="630" y="125" class="b">Web server</text><text x="630" y="145" class="s">app + database + cache</text><text x="630" y="162" class="s">all on one machine</text>
+    <path class="a" d="M190 90 L310 40"/><text x="200" y="55" class="s lft">1. api.mysite.com?</text>
+    <path class="ag" d="M310 50 L190 115"/><text x="215" y="108" class="s lft" transform="translate(40,20)">2. IP 15.125.23.214</text>
+    <path class="a" d="M190 160 L540 140"/><text x="365" y="143" class="s">3. HTTP request to the IP</text>
+    <path class="ag dash" d="M540 175 L190 190"/><text x="365" y="200" class="s">4. HTML page / JSON response</text>
+  </svg>
+  <figcaption>Figure 1 — Request flow with a single server.</figcaption>
+  </figure>
+
+  <h3>The 4 steps</h3>
+  <ol>
+    <li><b>DNS lookup</b> – users type a domain name; DNS (usually a paid third-party service, not your server) maps it to an IP.</li>
+    <li><b>IP returned</b> – the browser/app gets e.g. <code>15.125.23.214</code> and caches it for a while.</li>
+    <li><b>HTTP request</b> – sent directly to that IP / web server.</li>
+    <li><b>Response</b> – HTML for browsers, JSON for mobile apps.</li>
+  </ol>
+  <h3>Two traffic sources</h3>
+  <div class="grid">
+    <div class="card"><h4>Web application</h4>Server-side language (Java, Python…) for business logic and storage; client-side HTML + JavaScript for presentation.</div>
+    <div class="card"><h4>Mobile application</h4>Talks to the server over HTTP. <b>JSON</b> is the usual format because it is light and easy to parse. Example: <code>GET /users/12</code> returns the user object with id, name, address, phone numbers.</div>
+  </div>
+  <div class="warn"><b>Limit:</b> one machine = one point of failure, and web, DB and cache all fight for the same CPU/RAM.</div>
+</section>
+
+<!-- ============ 2 ============ -->
+<section id="s2">
+  <h2><span class="num">2</span>Separate the database (web tier vs data tier)</h2>
+  <p class="tag">First scaling step: move the database to its own server.</p>
+  <p>When users grow, put the <b>web/mobile traffic (web tier)</b> and the <b>database (data tier)</b> on different servers. Now each can be scaled on its own: a CPU-heavy web tier needs more compute; a data-heavy DB needs more disk and RAM.</p>
+  <figure class="diagram">
+  <svg viewBox="0 0 760 250">
+    <rect class="usr" x="20" y="80" width="130" height="90" rx="10"/><text x="85" y="108" class="b">User</text><text x="85" y="128" class="s">browser / app</text>
+    <rect class="cdn" x="200" y="15" width="110" height="46" rx="8"/><text x="255" y="43" class="b">DNS</text>
+    <path class="a" d="M100 80 L215 61"/>
+    <rect class="grp" x="360" y="60" width="150" height="130" rx="10"/><text x="435" y="80" class="s">WEB TIER</text>
+    <rect class="web" x="375" y="95" width="120" height="70" rx="8"/><text x="435" y="135" class="b">Web server</text>
+    <rect class="grp" x="590" y="60" width="150" height="130" rx="10"/><text x="665" y="80" class="s">DATA TIER</text>
+    <rect class="db" x="605" y="95" width="120" height="70" rx="12"/><text x="665" y="135" class="b">Database</text>
+    <path class="a" d="M150 125 L375 125"/><text x="262" y="118" class="s">HTTP</text>
+    <path class="a" d="M495 110 L605 110"/><text x="550" y="102" class="s">read/write/update</text>
+    <path class="ag dash" d="M605 150 L495 150"/><text x="550" y="168" class="s">return data</text>
+  </svg>
+  <figcaption>Figure 2 — Web tier and data tier separated.</figcaption>
+  </figure>
+  <div class="note"><b>Why it matters:</b> independent scaling, independent failure, and you can apply different security rules (DB not exposed to the internet).</div>
+</section>
+
+<!-- ============ 3 ============ -->
+<section id="s3">
+  <h2><span class="num">3</span>Which database: SQL or NoSQL?</h2>
+  <p class="tag">Default to relational; pick NoSQL when you have a specific reason.</p>
+  <figure class="diagram">
+  <svg viewBox="0 0 760 290">
+    <rect class="db" x="20" y="20" width="340" height="250" rx="12"/>
+    <text x="190" y="46" class="b">Relational (SQL)</text>
+    <text x="190" y="66" class="s">MySQL · PostgreSQL · Oracle</text>
+    <rect x="50" y="90" width="280" height="90" rx="4" style="fill:var(--card);stroke:var(--blue)"/>
+    <line x1="50" y1="115" x2="330" y2="115" style="stroke:var(--blue)"/><line x1="140" y1="90" x2="140" y2="180" style="stroke:var(--blue)"/><line x1="235" y1="90" x2="235" y2="180" style="stroke:var(--blue)"/>
+    <text x="95" y="108" class="s b">id</text><text x="187" y="108" class="s b">name</text><text x="282" y="108" class="s b">city</text>
+    <text x="95" y="135" class="s">1</text><text x="187" y="135" class="s">John</text><text x="282" y="135" class="s">NYC</text>
+    <text x="95" y="160" class="s">2</text><text x="187" y="160" class="s">Ann</text><text x="282" y="160" class="s">LA</text>
+    <text x="190" y="210">Tables + rows + JOINs</text><text x="190" y="232" class="s">Strong structure, 40+ years proven</text>
+    <text x="190" y="252" class="s">Best option for most apps</text>
+    <rect class="mq" x="400" y="20" width="340" height="250" rx="12"/>
+    <text x="570" y="46" class="b">Non-relational (NoSQL)</text>
+    <text x="570" y="66" class="s">Cassandra · DynamoDB · Neo4j · CouchDB</text>
+    <rect class="w" x="420" y="85" width="145" height="60" rx="8" style="fill:var(--card);stroke:var(--purple)"/><text x="492" y="110" class="b">Key-value</text><text x="492" y="128" class="s">user:12 → {…}</text>
+    <rect x="575" y="85" width="145" height="60" rx="8" style="fill:var(--card);stroke:var(--purple)"/><text x="647" y="110" class="b">Document</text><text x="647" y="128" class="s">JSON/BSON docs</text>
+    <rect x="420" y="155" width="145" height="60" rx="8" style="fill:var(--card);stroke:var(--purple)"/><text x="492" y="180" class="b">Column store</text><text x="492" y="198" class="s">wide rows, huge scale</text>
+    <rect x="575" y="155" width="145" height="60" rx="8" style="fill:var(--card);stroke:var(--purple)"/><text x="647" y="180" class="b">Graph</text><text x="647" y="198" class="s">nodes + relationships</text>
+    <text x="570" y="245" class="s">Joins generally not supported</text>
+  </svg>
+  <figcaption>Figure 3 — Relational vs non-relational.</figcaption>
+  </figure>
+  <h3>Choose NoSQL if…</h3>
+  <ul>
+    <li>You need <b>super-low latency</b>.</li>
+    <li>Data is <b>unstructured</b> or has no relations.</li>
+    <li>You only serialize/deserialize data (JSON, XML, YAML).</li>
+    <li>You must store a <b>massive amount</b> of data.</li>
+  </ul>
+  <div class="note">Real systems often use <b>both</b>: SQL for core business data (orders, payments) and NoSQL for sessions, logs, feeds.</div>
+</section>
+
+<!-- ============ 4 ============ -->
+<section id="s4">
+  <h2><span class="num">4</span>Vertical vs horizontal scaling</h2>
+  <p class="tag">Scale up (bigger machine) vs scale out (more machines).</p>
+  <figure class="diagram">
+  <svg viewBox="0 0 760 260">
+    <text x="190" y="24" class="b">Vertical scaling (scale up)</text>
+    <rect class="web" x="110" y="190" width="60" height="50" rx="4"/><text x="140" y="220" class="s">small</text>
+    <rect class="web" x="190" y="140" width="80" height="100" rx="4"/><text x="230" y="195" class="s">medium</text>
+    <rect class="web" x="290" y="60" width="100" height="180" rx="4"/><text x="340" y="155" class="s b">BIG</text><text x="340" y="172" class="s">more CPU/RAM</text>
+    <path class="a" d="M100 250 L400 250"/>
+    <text x="380" y="40" class="s">hard limit · SPOF</text>
+    <text x="570" y="24" class="b" style="transform:translateX(0)">Horizontal scaling (scale out)</text>
+    <g>
+      <rect class="web" x="480" y="60" width="70" height="60" rx="4"/><rect class="web" x="565" y="60" width="70" height="60" rx="4"/><rect class="web" x="650" y="60" width="70" height="60" rx="4"/>
+      <rect class="web" x="480" y="140" width="70" height="60" rx="4"/><rect class="web" x="565" y="140" width="70" height="60" rx="4"/><rect class="web" x="650" y="140" width="70" height="60" rx="4"/>
+    </g>
+    <text x="515" y="95" class="s">srv</text><text x="600" y="95" class="s">srv</text><text x="685" y="95" class="s">srv</text><text x="515" y="175" class="s">srv</text><text x="600" y="175" class="s">srv</text><text x="685" y="175" class="s">srv</text>
+    <path class="a" d="M470 250 L730 250"/><text x="600" y="232" class="s">add more servers · redundancy</text>
+    <text x="430" y="135" class="b" style="font-size:20px">VS</text>
+  </svg>
+  <figcaption>Figure 4 — Scale up vs scale out.</figcaption>
+  </figure>
+  <table>
+    <tr><th></th><th>Vertical (scale up)</th><th>Horizontal (scale out)</th></tr>
+    <tr><td>How</td><td>Add CPU, RAM, disk to one server</td><td>Add more servers to a pool</td></tr>
+    <tr><td class="pro">Pros</td><td>Simple; great when traffic is low</td><td>No hard limit; failover and redundancy</td></tr>
+    <tr><td class="con">Cons</td><td>Hard hardware limit; no failover (server down = site down); expensive</td><td>More complexity (needs load balancer, stateless design)</td></tr>
+  </table>
+  <div class="note">Rule of thumb: scale up first while it is cheap and easy; design for scale out before you hit the ceiling.</div>
+</section>
+
+<!-- ============ 5 ============ -->
+<section id="s5">
+  <h2><span class="num">5</span>Load balancer</h2>
+  <p class="tag">One public entry point that spreads traffic across many web servers.</p>
+  <p>Users connect to the load balancer's <b>public IP</b>. Web servers are no longer reachable directly; the balancer talks to them over <b>private IPs</b> (reachable only inside your network), which improves security.</p>
+  <figure class="diagram">
+  <svg viewBox="0 0 760 330">
+    <rect class="usr" x="10" y="130" width="110" height="70" rx="10"/><text x="65" y="160" class="b">User</text><text x="65" y="178" class="s">browser / app</text>
+    <rect class="cdn" x="160" y="20" width="130" height="50" rx="8"/><text x="225" y="42" class="b">DNS</text><text x="225" y="58" class="s">mywebsite.com → 88.88.88.1</text>
+    <path class="a" d="M80 130 L190 70"/>
+    <rect class="web" x="220" y="130" width="150" height="70" rx="8"/><text x="295" y="158" class="b">Load balancer</text><text x="295" y="178" class="s">public IP 88.88.88.1</text>
+    <path class="a" d="M120 165 L220 165"/>
+    <rect class="grp" x="470" y="40" width="270" height="260" rx="12"/><text x="605" y="60" class="s">private network</text>
+    <rect class="bad" x="500" y="80" width="210" height="50" rx="8"/><text x="605" y="103" class="b">Server 1 — OFFLINE</text><text x="605" y="119" class="s">10.0.0.1</text>
+    <rect class="web" x="500" y="150" width="210" height="50" rx="8"/><text x="605" y="173" class="b">Server 2</text><text x="605" y="189" class="s">10.0.0.2</text>
+    <rect class="web dash" x="500" y="220" width="210" height="50" rx="8"/><text x="605" y="243" class="b">Server 3 (newly added)</text><text x="605" y="259" class="s">10.0.0.3</text>
+    <path class="ar dash" d="M370 150 L500 110"/><text x="430" y="115" class="s" style="fill:var(--red)">health check fails ✗</text>
+    <path class="a" d="M370 165 L500 175"/><path class="a" d="M370 180 L500 245"/>
+  </svg>
+  <figcaption>Figure 5 — Load balancer with failover and scale-out.</figcaption>
+  </figure>
+  <h3>What it solves</h3>
+  <ul>
+    <li><b>Failover:</b> if Server 1 dies, all traffic goes to Server 2 and a new healthy server is added.</li>
+    <li><b>Scalability:</b> traffic spikes? Add servers to the pool; the balancer starts using them automatically.</li>
+    <li><b>Security:</b> only the balancer is public; servers use private IPs.</li>
+  </ul>
+  <h3>Good to know</h3>
+  <ul>
+    <li>Algorithms: round robin, least connections, IP hash, weighted.</li>
+    <li>It does <b>health checks</b> to detect dead servers.</li>
+    <li>The load balancer itself can become a SPOF, so in production they are deployed in redundant pairs (or managed, e.g. AWS ELB).</li>
+  </ul>
+</section>
+
+<!-- ============ 6 ============ -->
+<section id="s6">
+  <h2><span class="num">6</span>Database replication</h2>
+  <p class="tag">Master handles writes; slaves hold copies and handle reads.</p>
+  <figure class="diagram">
+  <svg viewBox="0 0 760 330">
+    <rect class="grp" x="20" y="10" width="720" height="310" rx="12"/>
+    <rect class="web" x="60" y="30" width="110" height="40" rx="6"/><text x="115" y="55">Web server</text>
+    <rect class="web" x="325" y="30" width="110" height="40" rx="6"/><text x="380" y="55">Web server</text>
+    <rect class="web" x="590" y="30" width="110" height="40" rx="6"/><text x="645" y="55">Web server</text>
+    <rect class="db" x="300" y="140" width="160" height="60" rx="14"/><text x="380" y="166" class="b">Master DB</text><text x="380" y="184" class="s">INSERT / UPDATE / DELETE</text>
+    <path class="a" d="M380 70 L380 140"/><text x="395" y="110" class="s lft b">writes</text>
+    <rect class="db" x="60" y="250" width="130" height="50" rx="12"/><text x="125" y="280" class="b">Slave DB 1</text>
+    <rect class="db" x="315" y="250" width="130" height="50" rx="12"/><text x="380" y="280" class="b">Slave DB 2</text>
+    <rect class="db" x="570" y="250" width="130" height="50" rx="12"/><text x="635" y="280" class="b">Slave DB 3</text>
+    <path class="a dash" d="M330 200 L150 250"/><path class="a dash" d="M380 200 L380 250"/><path class="a dash" d="M430 200 L610 250"/>
+    <text x="240" y="220" class="s" transform="rotate(-18 240 220)">replication</text><text x="395" y="232" class="s lft">replication</text>
+    <path class="ag" d="M100 70 L100 250"/><text x="90" y="170" class="s lft" style="fill:var(--green)" transform="rotate(-90 88 170)">reads</text>
+    <path class="ag" d="M345 70 L345 250" transform="translate(-0,0)"/>
+    <path class="ag" d="M645 70 L645 250"/><text x="660" y="170" class="s lft" style="fill:var(--green)">reads</text>
+  </svg>
+  <figcaption>Figure 6 — Master/slave replication. Writes → master, reads → slaves.</figcaption>
+  </figure>
+
+  <h3>Failure handling</h3>
+  <figure class="diagram">
+  <svg viewBox="0 0 760 210">
+    <text x="190" y="20" class="b">Slave goes offline</text>
+    <rect class="db" x="110" y="40" width="160" height="45" rx="12"/><text x="190" y="68" class="b">Master (also serves reads)</text>
+    <rect class="bad" x="30" y="130" width="100" height="45" rx="12"/><text x="80" y="158">Slave ✗</text>
+    <rect class="db" x="250" y="130" width="100" height="45" rx="12"/><text x="300" y="158">Slave OK</text>
+    <path class="ar dash" d="M130 85 L80 130"/><path class="ag" d="M270 85 L300 130"/>
+    <text x="190" y="200" class="s">reads → other slaves (or master if none)</text>
+    <text x="570" y="20" class="b">Master goes offline</text>
+    <rect class="bad" x="490" y="40" width="160" height="45" rx="12"/><text x="570" y="68">Old master ✗</text>
+    <rect class="db" x="410" y="130" width="130" height="45" rx="12" style="stroke-width:3"/><text x="475" y="150" class="b">Slave → NEW</text><text x="475" y="166" class="b">MASTER</text>
+    <rect class="db" x="600" y="130" width="130" height="45" rx="12"/><text x="665" y="158">Slave</text>
+    <path class="ag" d="M520 85 L475 130"/><text x="505" y="112" class="s lft">promote</text>
+    <text x="570" y="200" class="s">then add a replacement slave</text>
+  </svg>
+  <figcaption>Figure 6b — Failover scenarios.</figcaption>
+  </figure>
+
+  <div class="grid">
+    <div class="card"><h4 class="pro">Better performance</h4>Most apps read far more than they write, so many slaves serve reads in parallel.</div>
+    <div class="card"><h4 class="pro">Reliability</h4>Data is copied to several locations; a disaster at one site does not lose data.</div>
+    <div class="card"><h4 class="pro">High availability</h4>If one DB is offline, another serves the data.</div>
+  </div>
+  <div class="warn"><b>Caveat:</b> replication is usually asynchronous, so a slave can be slightly behind. Promoting a slave to master may need recovery scripts for missing data. Multi-master and circular replication exist but are more complex.</div>
+</section>
+
+<!-- ============ 7 ============ -->
+<section id="s7">
+  <h2><span class="num">7</span>Cache</h2>
+  <p class="tag">Keep hot data in memory so most requests never reach the database.</p>
+  <figure class="diagram">
+  <svg viewBox="0 0 760 270">
+    <rect class="web" x="20" y="100" width="140" height="70" rx="8"/><text x="90" y="140" class="b">Web server</text>
+    <rect class="cch" x="320" y="100" width="130" height="70" rx="8"/><text x="385" y="132" class="b">Cache</text><text x="385" y="150" class="s">in memory</text>
+    <rect class="db" x="600" y="100" width="130" height="70" rx="12"/><text x="665" y="140" class="b">Database</text>
+    <path class="ag" d="M160 120 L320 120"/><circle class="step" cx="240" cy="108" r="10"/><text class="stepn" x="240" y="112">1</text>
+    <text x="240" y="85" class="s">check cache first</text>
+    <path class="ag dash" d="M320 160 L160 160"/><text x="240" y="182" class="s">HIT → return data</text>
+    <path class="ao" d="M450 120 L600 120"/><circle class="step" cx="525" cy="108" r="10"/><text class="stepn" x="525" y="112">2</text>
+    <text x="525" y="85" class="s">MISS → query DB</text>
+    <path class="a dash" d="M600 155 L450 155"/><text x="525" y="178" class="s">3. DB returns data</text>
+    <text x="385" y="230" class="s">4. Store in cache (with TTL) → 5. Return to web server</text>
+    <path class="ao dash" d="M665 100 C665 40, 385 40, 385 100"/><text x="525" y="38" class="s">write result into cache</text>
+  </svg>
+  <figcaption>Figure 7 — Read-through cache flow.</figcaption>
+  </figure>
+  <p>The cache tier is much faster than the database, reduces DB load, and can be scaled independently. APIs are simple, e.g. Memcached: <code>cache.set('myKey','hi there',3600)</code> and <code>cache.get('myKey')</code>.</p>
+
+  <h3>Considerations</h3>
+  <div class="grid">
+    <div class="card"><h4>When to use</h4>Data that is <b>read often, changed rarely</b>. Cache is volatile; never the only copy of important data.</div>
+    <div class="card"><h4>Expiration (TTL)</h4>Too short → constant DB reloads. Too long → stale data. Always set one.</div>
+    <div class="card"><h4>Consistency</h4>DB and cache updates aren't one transaction, so they can drift apart; harder across regions.</div>
+    <div class="card"><h4>Avoid SPOF</h4>Use several cache servers across data centers and over-provision memory as a buffer.</div>
+    <div class="card"><h4>Eviction</h4>When full, old items are removed. <b>LRU</b> (least recently used) is most common; also LFU, FIFO.</div>
+  </div>
+  <figure class="diagram">
+  <svg viewBox="0 0 760 130">
+    <text x="380" y="18" class="b">LRU eviction example (capacity 3)</text>
+    <rect class="cch" x="60" y="40" width="80" height="40" rx="6"/><text x="100" y="65">C (newest)</text>
+    <rect class="cch" x="150" y="40" width="80" height="40" rx="6"/><text x="190" y="65">B</text>
+    <rect class="bad" x="240" y="40" width="80" height="40" rx="6"/><text x="280" y="65">A (oldest)</text>
+    <text x="280" y="102" class="s">← evicted when D arrives</text>
+    <path class="ak" d="M335 60 L400 60"/>
+    <rect class="cch" x="415" y="40" width="80" height="40" rx="6"/><text x="455" y="65">D (new)</text>
+    <rect class="cch" x="505" y="40" width="80" height="40" rx="6"/><text x="545" y="65">C</text>
+    <rect class="cch" x="595" y="40" width="80" height="40" rx="6"/><text x="635" y="65">B</text>
+  </svg>
+  </figure>
+</section>
+
+<!-- ============ 8 ============ -->
+<section id="s8">
+  <h2><span class="num">8</span>Content Delivery Network (CDN)</h2>
+  <p class="tag">Serve static files from a server geographically close to the user.</p>
+  <figure class="diagram">
+  <svg viewBox="0 0 760 340">
+    <rect class="usr" x="20" y="40" width="110" height="50" rx="8"/><text x="75" y="70">User A</text>
+    <rect class="usr" x="20" y="250" width="110" height="50" rx="8"/><text x="75" y="280">User B</text>
+    <rect class="cdn" x="310" y="130" width="140" height="80" rx="40"/><text x="380" y="165" class="b">CDN</text><text x="380" y="183" class="s">edge cache</text>
+    <rect class="web" x="620" y="140" width="120" height="60" rx="8"/><text x="680" y="165" class="b">Origin</text><text x="680" y="182" class="s">web server / S3</text>
+    <path class="a" d="M130 65 L330 140"/><circle class="step" cx="215" cy="92" r="10"/><text class="stepn" x="215" y="96">1</text>
+    <text x="170" y="55" class="s lft">get image.png</text>
+    <path class="ao dash" d="M450 160 L620 160"/><circle class="step" cx="535" cy="148" r="10"/><text class="stepn" x="535" y="152">2</text>
+    <text x="535" y="130" class="s">not cached → fetch</text>
+    <path class="ag dash" d="M620 185 L450 185"/><circle class="step" cx="535" cy="198" r="10"/><text class="stepn" x="535" y="202">3</text>
+    <text x="535" y="222" class="s">file + TTL header</text>
+    <path class="ag dash" d="M345 140 L130 80"/><circle class="step" cx="250" cy="106" r="10"/><text class="stepn" x="250" y="110">4</text>
+    <text x="300" y="100" class="s">cache + return</text>
+    <path class="a" d="M130 275 L330 200"/><circle class="step" cx="195" cy="250" r="10"/><text class="stepn" x="195" y="254">5</text>
+    <path class="ag dash" d="M345 205 L130 290"/><circle class="step" cx="275" cy="262" r="10"/><text class="stepn" x="275" y="266">6</text>
+    <text x="380" y="300" class="s">5–6: User B gets it straight from cache (until TTL expires)</text>
+  </svg>
+  <figcaption>Figure 8 — CDN workflow.</figcaption>
+  </figure>
+
+  <figure class="diagram">
+  <svg viewBox="0 0 760 130">
+    <rect class="usr" x="20" y="20" width="90" height="36" rx="6"/><text x="65" y="43">Client</text>
+    <rect class="web" x="620" y="20" width="110" height="36" rx="6"/><text x="675" y="43">Origin</text>
+    <path class="ar" d="M110 38 L620 38"/><text x="365" y="30" class="s">direct to origin: ~120 ms</text>
+    <rect class="usr" x="20" y="80" width="90" height="36" rx="6"/><text x="65" y="103">Client</text>
+    <rect class="cdn" x="300" y="80" width="110" height="36" rx="18"/><text x="355" y="103">CDN</text>
+    <path class="ag" d="M110 98 L300 98"/><text x="205" y="90" class="s">via CDN: ~30 ms</text>
+    <path class="ak dash" d="M410 98 L620 98"/><rect class="web" x="620" y="80" width="110" height="36" rx="6"/><text x="675" y="103">Origin</text>
+  </svg>
+  <figcaption>Figure 8b — Latency with and without CDN (example numbers).</figcaption>
+  </figure>
+
+  <h3>Considerations</h3>
+  <ul>
+    <li><b>Cost:</b> you pay per data transfer; don't put rarely used assets on the CDN.</li>
+    <li><b>Cache expiry (TTL):</b> not too long (stale), not too short (constant origin reloads).</li>
+    <li><b>Fallback:</b> if the CDN is down, clients should fall back to the origin.</li>
+    <li><b>Invalidation:</b> use the vendor API, or <b>versioned URLs</b> like <code>image.png?v=2</code>.</li>
+  </ul>
+  <div class="note">After CDN + cache: static assets no longer hit web servers, and database load drops thanks to caching.</div>
+</section>
+
+<!-- ============ 9 ============ -->
+<section id="s9">
+  <h2><span class="num">9</span>Stateless web tier</h2>
+  <p class="tag">Keep session state out of the web servers so any server can handle any request.</p>
+  <figure class="diagram">
+  <svg viewBox="0 0 760 330">
+    <text x="190" y="20" class="b">Stateful (problem)</text>
+    <rect class="usr" x="10" y="40" width="70" height="36" rx="6"/><text x="45" y="63">User A</text>
+    <rect class="usr" x="10" y="130" width="70" height="36" rx="6"/><text x="45" y="153">User B</text>
+    <rect class="usr" x="10" y="220" width="70" height="36" rx="6"/><text x="45" y="243">User C</text>
+    <rect class="web" x="230" y="30" width="150" height="56" rx="8"/><text x="305" y="52" class="b">Server 1</text><text x="305" y="70" class="s">A's session + photo</text>
+    <rect class="web" x="230" y="120" width="150" height="56" rx="8"/><text x="305" y="142" class="b">Server 2</text><text x="305" y="160" class="s">B's session + photo</text>
+    <rect class="web" x="230" y="210" width="150" height="56" rx="8"/><text x="305" y="232" class="b">Server 3</text><text x="305" y="250" class="s">C's session + photo</text>
+    <path class="a" d="M80 58 L230 58"/><path class="a" d="M80 148 L230 148"/><path class="a" d="M80 238 L230 238"/>
+    <path class="ar dash" d="M80 70 L230 135"/><text x="150" y="112" class="s" style="fill:var(--red)">✗ auth fails</text>
+    <text x="190" y="300" class="s">A must always hit Server 1 (sticky sessions)</text>
+    <line x1="430" y1="10" x2="430" y2="310" style="stroke:var(--line)"/>
+    <text x="590" y="20" class="b">Stateless (solution)</text>
+    <rect class="usr" x="450" y="40" width="70" height="36" rx="6"/><text x="485" y="63">User A</text>
+    <rect class="usr" x="450" y="130" width="70" height="36" rx="6"/><text x="485" y="153">User B</text>
+    <rect class="usr" x="450" y="220" width="70" height="36" rx="6"/><text x="485" y="243">User C</text>
+    <rect class="grp" x="590" y="30" width="150" height="240" rx="10"/>
+    <rect class="web" x="610" y="45" width="110" height="40" rx="6"/><text x="665" y="70">Web server</text>
+    <rect class="web" x="610" y="120" width="110" height="40" rx="6"/><text x="665" y="145">Web server</text>
+    <rect class="web" x="610" y="195" width="110" height="40" rx="6"/><text x="665" y="220">Web server</text>
+    <path class="a" d="M520 58 L610 65"/><path class="a" d="M520 148 L610 140"/><path class="a" d="M520 238 L610 215"/>
+    <rect class="db" x="560" y="285" width="210" height="40" rx="12"/><text x="665" y="310" class="b">Shared store (NoSQL / Redis)</text>
+    <path class="ap" d="M665 270 L665 285"/>
+  </svg>
+  <figcaption>Figure 9 — Stateful vs stateless.</figcaption>
+  </figure>
+  <div class="grid">
+    <div class="card"><h4 class="con">Stateful</h4>Server remembers the client between requests. Requests must be pinned to one server (sticky sessions). Adding/removing servers and handling failures is hard.</div>
+    <div class="card"><h4 class="pro">Stateless</h4>Servers keep no client state; they fetch it from a shared store (relational DB, Redis/Memcached, NoSQL). Simpler, more robust, easy to auto-scale.</div>
+  </div>
+  <p>With state removed, <b>auto-scaling</b> becomes straightforward: add or remove web servers automatically based on CPU or request load.</p>
+</section>
+
+<!-- ============ 10 ============ -->
+<section id="s10">
+  <h2><span class="num">10</span>Multiple data centers</h2>
+  <p class="tag">Serve users from the closest region; survive a full-region outage.</p>
+  <figure class="diagram">
+  <svg viewBox="0 0 760 420">
+    <text x="190" y="18" class="b">Normal: geoDNS splits traffic</text>
+    <rect class="usr" x="150" y="30" width="80" height="36" rx="6"/><text x="190" y="53">Users</text>
+    <rect class="cdn" x="140" y="90" width="100" height="36" rx="18"/><text x="190" y="113">geoDNS</text>
+    <path class="a" d="M190 66 L190 90"/>
+    <rect class="web" x="20" y="180" width="150" height="90" rx="10"/><text x="95" y="210" class="b">DC1 US-East</text><text x="95" y="230" class="s">web + DB + cache</text><text x="95" y="250" class="s b">x % traffic</text>
+    <rect class="web" x="210" y="180" width="150" height="90" rx="10"/><text x="285" y="210" class="b">DC2 US-West</text><text x="285" y="230" class="s">web + DB + cache</text><text x="285" y="250" class="s b">(100−x) % traffic</text>
+    <path class="a" d="M170 126 L95 180"/><path class="a" d="M210 126 L285 180"/>
+    <path class="a dash" d="M170 235 L210 235"/><path class="a dash" d="M210 250 L170 250"/>
+    <text x="190" y="300" class="s">data replicated async</text>
+    <line x1="400" y1="10" x2="400" y2="410" style="stroke:var(--line)"/>
+    <text x="580" y="18" class="b">Failover: DC2 down</text>
+    <rect class="usr" x="540" y="30" width="80" height="36" rx="6"/><text x="580" y="53">Users</text>
+    <rect class="cdn" x="530" y="90" width="100" height="36" rx="18"/><text x="580" y="113">geoDNS</text>
+    <path class="a" d="M580 66 L580 90"/>
+    <rect class="web" x="430" y="180" width="150" height="90" rx="10"/><text x="505" y="210" class="b">DC1 US-East</text><text x="505" y="230" class="s">web + DB + cache</text><text x="505" y="250" class="s b">100 % traffic</text>
+    <rect class="bad" x="600" y="180" width="150" height="90" rx="10"/><text x="675" y="215" class="b">DC2 US-West</text><text x="675" y="238" style="fill:var(--red)" class="b">OFFLINE ✗</text>
+    <path class="a" d="M555 126 L505 180"/><path class="ar dash" d="M605 126 L660 180"/>
+  </svg>
+  <figcaption>Figure 10 — Multi data center with geoDNS and failover.</figcaption>
+  </figure>
+  <p><b>geoDNS</b> resolves the same domain to different IPs depending on where the user is. In an outage, traffic is sent 100% to the healthy data center.</p>
+  <h3>Technical challenges</h3>
+  <table>
+    <tr><th>Challenge</th><th>Approach</th></tr>
+    <tr><td>Traffic redirection</td><td>geoDNS / geo-routing to the nearest healthy DC.</td></tr>
+    <tr><td>Data synchronization</td><td>Replicate data across DCs (e.g. Netflix's asynchronous multi-DC replication), so failover traffic finds its data.</td></tr>
+    <tr><td>Test &amp; deployment</td><td>Test from each location; use automated deployment to keep every DC identical.</td></tr>
+  </table>
+</section>
+
+<!-- ============ 11 ============ -->
+<section id="s11">
+  <h2><span class="num">11</span>Message queue</h2>
+  <p class="tag">Decouple components with asynchronous communication.</p>
+  <figure class="diagram">
+  <svg viewBox="0 0 760 210">
+    <rect class="web" x="20" y="60" width="130" height="80" rx="8"/><text x="85" y="95" class="b">Producer</text><text x="85" y="113" class="s">publisher</text>
+    <path class="ap" d="M150 100 L300 100"/><text x="225" y="92" class="s">publish</text>
+    <rect class="mq" x="300" y="60" width="170" height="80" rx="10"/><text x="385" y="88" class="b">Message queue</text>
+    <rect x="320" y="102" width="30" height="22" rx="3" style="fill:var(--card);stroke:var(--purple)"/><rect x="360" y="102" width="30" height="22" rx="3" style="fill:var(--card);stroke:var(--purple)"/><rect x="400" y="102" width="30" height="22" rx="3" style="fill:var(--card);stroke:var(--purple)"/>
+    <path class="ap" d="M470 100 L610 100"/><text x="540" y="92" class="s">consume</text>
+    <rect class="web" x="610" y="60" width="130" height="80" rx="8"/><text x="675" y="95" class="b">Consumer</text><text x="675" y="113" class="s">subscriber</text>
+    <path class="ap dash" d="M610 130 L470 130" style="marker-end:none"/>
+    <text x="540" y="150" class="s">subscribes</text>
+    <text x="385" y="190" class="s">Either side can be down; the queue buffers messages.</text>
+  </svg>
+  <figcaption>Figure 11 — Producer / consumer model.</figcaption>
+  </figure>
+
+  <h3>Example: photo processing</h3>
+  <figure class="diagram">
+  <svg viewBox="0 0 760 260">
+    <rect class="grp" x="20" y="30" width="170" height="200" rx="10"/><text x="105" y="50" class="s">Producers: web servers</text>
+    <rect class="web" x="40" y="65" width="130" height="40" rx="6"/><text x="105" y="90">Web server</text>
+    <rect class="web" x="40" y="120" width="130" height="40" rx="6"/><text x="105" y="145">Web server</text>
+    <rect class="web" x="40" y="175" width="130" height="40" rx="6"/><text x="105" y="200">Web server</text>
+    <path class="ap" d="M170 85 L290 125"/><path class="ap" d="M170 140 L290 135"/><path class="ap" d="M170 195 L290 145"/>
+    <rect class="mq" x="290" y="100" width="180" height="60" rx="10"/><text x="380" y="128" class="b">queue: photo jobs</text><text x="380" y="146" class="s">crop · blur · sharpen</text>
+    <rect class="grp" x="570" y="30" width="170" height="200" rx="10"/><text x="655" y="50" class="s">Consumers: workers</text>
+    <rect class="web" x="590" y="65" width="130" height="40" rx="6"/><text x="655" y="90">Worker</text>
+    <rect class="web" x="590" y="120" width="130" height="40" rx="6"/><text x="655" y="145">Worker</text>
+    <rect class="web dash" x="590" y="175" width="130" height="40" rx="6"/><text x="655" y="200">Worker (added)</text>
+    <path class="ap" d="M470 125 L590 85"/><path class="ap" d="M470 130 L590 140"/><path class="ap dash" d="M470 135 L590 195"/>
+    <text x="380" y="230" class="s">queue long → add workers · queue empty → remove workers</text>
+  </svg>
+  <figcaption>Figure 11b — Producers and consumers scale independently.</figcaption>
+  </figure>
+  <div class="note">Benefits: loose coupling, failure resilience, smoother traffic spikes, independent scaling. Typical tools: RabbitMQ, Kafka, SQS.</div>
+</section>
+
+<!-- ============ 12 ============ -->
+<section id="s12">
+  <h2><span class="num">12</span>Logging, metrics, automation</h2>
+  <p class="tag">Optional for a small site; essential for a big business.</p>
+  <figure class="diagram">
+  <svg viewBox="0 0 760 330">
+    <rect class="web" x="20" y="20" width="120" height="40" rx="6"/><text x="80" y="45">Servers</text>
+    <rect class="db" x="20" y="75" width="120" height="40" rx="6"/><text x="80" y="100">Databases</text>
+    <rect class="cch" x="20" y="130" width="120" height="40" rx="6"/><text x="80" y="155">Cache / Queue</text>
+    <path class="ak" d="M140 40 L300 55"/><path class="ak" d="M140 95 L300 95"/><path class="ak" d="M140 150 L300 135"/>
+    <rect class="mq" x="300" y="30" width="180" height="55" rx="8"/><text x="390" y="55" class="b">Central logging</text><text x="390" y="72" class="s">search errors in one place</text>
+    <rect class="cdn" x="300" y="105" width="180" height="55" rx="8"/><text x="390" y="130" class="b">Metrics</text><text x="390" y="147" class="s">host · aggregated · business</text>
+    <path class="ak" d="M480 57 L600 80"/><path class="ak" d="M480 132 L600 100"/>
+    <rect class="usr" x="600" y="50" width="140" height="70" rx="8"/><text x="670" y="80" class="b">Dashboards</text><text x="670" y="98" class="s">+ alerts</text>
+    <text x="380" y="205" class="b">Automation: CI/CD pipeline</text>
+    <rect class="web" x="40" y="225" width="120" height="45" rx="8"/><text x="100" y="252">Code check-in</text>
+    <rect class="web" x="210" y="225" width="120" height="45" rx="8"/><text x="270" y="252">Build</text>
+    <rect class="web" x="380" y="225" width="120" height="45" rx="8"/><text x="440" y="252">Automated tests</text>
+    <rect class="web" x="550" y="225" width="150" height="45" rx="8"/><text x="625" y="252">Deploy to all DCs</text>
+    <path class="a" d="M160 247 L210 247"/><path class="a" d="M330 247 L380 247"/><path class="a" d="M500 247 L550 247"/>
+    <text x="380" y="305" class="s">Failed step → stop and fix early</text>
+  </svg>
+  <figcaption>Figure 12 — Observability and automation.</figcaption>
+  </figure>
+  <div class="grid">
+    <div class="card"><h4>Logging</h4>Watch error logs per server, or aggregate to a central service for easy search.</div>
+    <div class="card"><h4>Metrics</h4><b>Host level:</b> CPU, memory, disk I/O.<br><b>Aggregated:</b> DB tier, cache tier performance.<br><b>Business:</b> daily active users, retention, revenue.</div>
+    <div class="card"><h4>Automation</h4>Continuous integration verifies every check-in; automate build, test, deploy to raise productivity and consistency.</div>
+  </div>
+</section>
+
+<!-- ============ 13 ============ -->
+<section id="s13">
+  <h2><span class="num">13</span>Database scaling: sharding</h2>
+  <p class="tag">Split a huge database into smaller shards across servers.</p>
+  <p>Vertical scaling of a DB (e.g. 24 TB RAM servers exist) helps a long way, but has hardware limits, SPOF risk and high cost. Horizontal scaling = <b>sharding</b>: every shard has the same schema but holds different rows.</p>
+  <figure class="diagram">
+  <svg viewBox="0 0 760 300">
+    <rect class="web" x="20" y="120" width="120" height="50" rx="8"/><text x="80" y="143" class="b">Web server</text><text x="80" y="159" class="s">user_id = 11</text>
+    <path class="a" d="M140 145 L230 145"/>
+    <path d="M300 105 L370 145 L300 185 L230 145 Z" class="cch"/><text x="300" y="142" class="s b">user_id</text><text x="300" y="157" class="s b">% 4</text>
+    <path class="ar" d="M365 130 L470 40"/><path class="a" d="M370 140 L470 105"/><path class="a" d="M370 150 L470 185"/>
+    <path class="ag" d="M365 160 L470 250" style="stroke-width:3"/>
+    <text x="410" y="215" class="s lft" style="fill:var(--green)">11 % 4 = 3</text>
+    <rect class="db" x="470" y="15" width="270" height="55" rx="12"/><text x="605" y="38" class="b">Shard 0</text><text x="605" y="56" class="s">users 0, 4, 8, 12 …</text>
+    <rect class="db" x="470" y="80" width="270" height="55" rx="12"/><text x="605" y="103" class="b">Shard 1</text><text x="605" y="121" class="s">users 1, 5, 9, 13 …</text>
+    <rect class="db" x="470" y="160" width="270" height="55" rx="12"/><text x="605" y="183" class="b">Shard 2</text><text x="605" y="201" class="s">users 2, 6, 10, 14 …</text>
+    <rect class="db" x="470" y="225" width="270" height="55" rx="12" style="stroke:var(--green);stroke-width:3"/><text x="605" y="248" class="b">Shard 3 ← chosen</text><text x="605" y="266" class="s">users 3, 7, 11, 15 …</text>
+  </svg>
+  <figcaption>Figure 13 — Hash-based sharding with user_id % 4.</figcaption>
+  </figure>
+
+  <p>The <b>sharding (partition) key</b> (here <code>user_id</code>) is the most important decision. It should spread data <b>evenly</b> and let you route each query to exactly one shard.</p>
+
+  <h3>New challenges introduced</h3>
+  <div class="grid">
+    <div class="card"><h4>Resharding</h4>A shard fills up or data is uneven → change the hash function and move data. With <code>% N</code>, changing N remaps almost everything. <b>Consistent hashing</b> moves only a small fraction (see below).</div>
+    <div class="card"><h4>Celebrity / hotspot</h4>Katy Perry, Justin Bieber and Lady Gaga on one shard will overload it. Give hot keys their own shard, possibly split further.</div>
+    <div class="card"><h4>Joins &amp; denormalization</h4>Cross-shard JOINs are hard. Denormalize so a query needs a single table.</div>
+  </div>
+
+  <h3>Consistent hashing (for resharding)</h3>
+  <figure class="diagram">
+  <svg viewBox="0 0 760 320">
+    <circle cx="250" cy="160" r="120" fill="none" style="stroke:var(--line);stroke-width:3"/>
+    <circle cx="250" cy="40" r="14" class="db"/><text x="250" y="45" class="s b">S0</text>
+    <circle cx="370" cy="160" r="14" class="db"/><text x="370" y="165" class="s b">S1</text>
+    <circle cx="250" cy="280" r="14" class="db"/><text x="250" y="285" class="s b">S2</text>
+    <circle cx="130" cy="160" r="14" class="db"/><text x="130" y="165" class="s b">S3</text>
+    <circle cx="335" cy="75" r="7" class="cch"/><text x="350" y="68" class="s lft">key k1</text>
+    <circle cx="335" cy="245" r="7" class="cch"/><text x="350" y="262" class="s lft">key k2</text>
+    <circle cx="165" cy="245" r="9" class="cdn" style="stroke-dasharray:3 2"/><text x="165" y="270" class="s">new S4</text>
+    <text x="250" y="155" class="b">hash ring</text><text x="250" y="173" class="s">key → next server clockwise</text>
+    <text x="470" y="80" class="lft b">How it works</text>
+    <text x="470" y="105" class="lft s">1. Servers and keys are hashed onto the same ring.</text>
+    <text x="470" y="125" class="lft s">2. A key belongs to the first server clockwise.</text>
+    <text x="470" y="145" class="lft s">3. Add a server (S4): only keys between S3 and S4</text>
+    <text x="470" y="162" class="lft s">    move. Everything else stays put.</text>
+    <text x="470" y="185" class="lft s">4. Remove a server: its keys go to the next one.</text>
+    <text x="470" y="215" class="lft s">Virtual nodes smooth out uneven distribution.</text>
+  </svg>
+  <figcaption>Figure 13b — Consistent hashing ring.</figcaption>
+  </figure>
+  <div class="note">In the final design, some non-relational workloads (sessions, logs, feeds) are moved to a NoSQL store to take even more load off the sharded relational databases.</div>
+</section>
+
+<!-- ============ SUMMARY ============ -->
+<section id="summary">
+  <h2>Summary: key takeaways</h2>
+  <ul>
+    <li>Keep the <b>web tier stateless</b>.</li>
+    <li>Build <b>redundancy</b> at every tier (LB, web, DB, cache, data center).</li>
+    <li><b>Cache</b> as much data as you can.</li>
+    <li>Host static assets on a <b>CDN</b>.</li>
+    <li>Scale the data tier by <b>sharding</b>; move suitable data to <b>NoSQL</b>.</li>
+    <li>Split tiers into independent services and decouple with <b>message queues</b>.</li>
+    <li>Monitor the system and use <b>automation</b> tools.</li>
+  </ul>
+  <p class="tag">Scaling is iterative: measure, find the bottleneck, add the simplest block that fixes it, repeat.</p>
+</section>
+
+</main>
+<script>
+(function(){
+  var NS='http://www.w3.org/2000/svg';
+  var COLOR={web:'var(--green)',db:'var(--blue)',cch:'var(--orange)',mq:'var(--purple)',cdn:'var(--teal)',usr:'#78879b',bad:'var(--red)'};
+  var RULES=[[/load balancer/,'lb'],[/dns/,'dns'],[/cdn/,'cloud'],[/code check/,'code'],[/^build/,'gear'],[/test/,'check'],[/deploy/,'deploy'],
+    [/dashboard|metric|logging/,'chart'],[/worker|tools|automation/,'gear'],[/cache/,'cache'],[/queue|message/,'mail'],
+    [/db|database|shard|slave|master|nosql|shared store/,'db'],[/user|client/,'user']];
+  var BYCLASS={web:'server',db:'db',cch:'cache',mq:'mail',cdn:'cloud',usr:'user',bad:'server'};
+  function pickIcon(label,cls){
+    var l=(label||'').toLowerCase();
+    for(var i=0;i<RULES.length;i++) if(RULES[i][0].test(l)) return RULES[i][1];
+    return BYCLASS[cls];
+  }
+  function badge(svg,cx,cy,r,color,icon){
+    var g=document.createElementNS(NS,'g'); g.setAttribute('class','badge');
+    var c=document.createElementNS(NS,'circle'); c.setAttribute('cx',cx);c.setAttribute('cy',cy);c.setAttribute('r',r);c.style.fill=color;
+    var u=document.createElementNS(NS,'use'); u.setAttribute('href','#i-'+icon);
+    var s=r*1.25; u.setAttribute('x',cx-s/2);u.setAttribute('y',cy-s/2);u.setAttribute('width',s);u.setAttribute('height',s);
+    g.appendChild(c);g.appendChild(u);svg.appendChild(g);
+  }
+  document.querySelectorAll('figure svg').forEach(function(svg){
+    var texts=[].slice.call(svg.querySelectorAll('text'));
+    svg.querySelectorAll('rect').forEach(function(r){
+      var cls=null;
+      for(var k in COLOR) if(r.classList.contains(k)){cls=k;break;}
+      if(!cls) return;
+      var x=+r.getAttribute('x'),y=+r.getAttribute('y'),w=+r.getAttribute('width'),h=+r.getAttribute('height');
+      if(w<90||h<34) return;
+      var inside=texts.filter(function(t){
+        var tx=+t.getAttribute('x'),ty=+t.getAttribute('y');
+        return tx>=x&&tx<=x+w&&ty>=y&&ty<=y+h&&!/display:\s*none/.test(t.getAttribute('style')||'');
+      }).sort(function(a,b){return a.getAttribute('y')-b.getAttribute('y');});
+      var label=inside.length?inside[0].textContent:'';
+      badge(svg,x+14,y+1,13,COLOR[cls],pickIcon(label,cls));
+    });
+  });
+  // hero icons
+  var hero=document.getElementById('heroIcons');
+  [['usr','user'],['cdn','dns'],['cdn','cloud'],['web','lb'],['web','server'],['cch','cache'],['mq','mail'],['db','db']].forEach(function(p){
+    var s=document.createElement('span');s.style.background=COLOR[p[0]];
+    s.innerHTML='<svg viewBox="0 0 24 24"><use href="#i-'+p[1]+'"/></svg>';hero.appendChild(s);
+  });
+  // legend
+  var lg=document.getElementById('legend');
+  [['User / client','usr','user'],['DNS','cdn','dns'],['CDN','cdn','cloud'],['Load balancer','web','lb'],['Web server','web','server'],
+   ['Cache','cch','cache'],['Message queue','mq','mail'],['Database','db','db'],['Worker / tools','web','gear'],['Monitoring','cdn','chart']].forEach(function(p){
+    var c=document.createElement('span');c.className='chip';
+    c.innerHTML='<i style="background:'+COLOR[p[1]]+'"><svg viewBox="0 0 24 24"><use href="#i-'+p[2]+'"/></svg></i>'+p[0];lg.appendChild(c);
+  });
+  // section emojis
+  var EMO={overview:'🗺️',s1:'🖥️',s2:'🗄️',s3:'🔀',s4:'📈',s5:'⚖️',s6:'🔁',s7:'⚡',s8:'🌍',s9:'🪶',s10:'🏢',s11:'✉️',s12:'📊',s13:'🧩',summary:'✅'};
+  Object.keys(EMO).forEach(function(id){
+    var h=document.querySelector('#'+id+' h2'); if(!h) return;
+    var e=document.createElement('span');e.className='emo';e.textContent=EMO[id];
+    var n=h.querySelector('.num'); if(n) n.after(e); else h.prepend(e);
+  });
+  document.querySelectorAll('nav a').forEach(function(a){
+    var id=a.getAttribute('href').slice(1); if(EMO[id]) a.textContent=EMO[id]+' '+a.textContent;
+  });
+})();
+</script>
+</body>
+</html>

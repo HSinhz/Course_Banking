@@ -1,0 +1,484 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nginx Live Example — Banking Basic</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+:root {
+  --bg: #0d1117; --card: #161b22; --card2: #1c2330;
+  --ink: #e6edf3; --muted: #8b949e; --line: #30363d;
+  --accent: #58a6ff;
+  --green: #3fb950; --green-dim: #0d2d1a;
+  --orange: #d29922; --orange-dim: #2d2004;
+  --red: #f85149; --red-dim: #3d0f0f;
+  --purple: #a371f7; --purple-dim: #1f0e40;
+  --teal: #39d0c3;
+  color-scheme: dark;
+}
+@media (prefers-color-scheme: light) {
+  :root {
+    --bg: #f4f6fb; --card: #fff; --card2: #f0f4ff;
+    --ink: #18212e; --muted: #5c6b7e; --line: #dde3ec;
+    --accent: #2563eb;
+    --green: #16a34a; --green-dim: #dcfce7;
+    --orange: #d97706; --orange-dim: #fef3c7;
+    --red: #dc2626; --red-dim: #fee2e2;
+    --purple: #7c3aed; --purple-dim: #ede9fe;
+    --teal: #0d9488;
+    color-scheme: light;
+  }
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--bg); color: var(--ink); font: 15px/1.65 'Inter', system-ui, sans-serif; padding: 32px 16px 80px; }
+.page { max-width: 900px; margin: 0 auto; }
+
+h1 { font-size: 1.6rem; font-weight: 700; letter-spacing: -.02em; }
+.sub { color: var(--muted); font-size: .88rem; margin-top: 5px; }
+
+/* ── Scenario bar ── */
+.scenario-label {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: var(--purple-dim); border: 1px solid var(--purple);
+  border-radius: 8px; padding: 8px 14px; font-size: .84rem;
+  color: var(--purple); font-weight: 600; margin: 20px 0;
+}
+
+/* ── Actors ── */
+.actors { display: flex; gap: 10px; flex-wrap: wrap; margin: 20px 0; }
+.actor {
+  flex: 1 1 120px; background: var(--card); border: 1px solid var(--line);
+  border-radius: 10px; padding: 12px 14px; text-align: center;
+}
+.actor .avatar { font-size: 1.6rem; margin-bottom: 4px; }
+.actor .name { font-weight: 600; font-size: .9rem; }
+.actor .detail { font-size: .75rem; color: var(--muted); margin-top: 2px; }
+.actor.nginx-actor { border-color: var(--green); }
+.actor.api1-actor  { border-color: var(--accent); }
+.actor.api2-actor  { border-color: var(--accent); }
+.actor.db-actor    { border-color: var(--purple); }
+
+/* ── Section title ── */
+.section-title {
+  font-size: .72rem; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .09em; color: var(--muted); margin: 28px 0 10px;
+}
+
+/* ── Step cards ── */
+.steps { display: flex; flex-direction: column; gap: 0; }
+
+.step-wrap {
+  display: flex; gap: 0; align-items: stretch;
+}
+.step-line-col {
+  display: flex; flex-direction: column; align-items: center;
+  width: 40px; flex-shrink: 0; padding-top: 14px;
+}
+.step-dot {
+  width: 32px; height: 32px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: .78rem; font-weight: 700; flex-shrink: 0;
+  border: 2px solid;
+}
+.step-dot.normal   { background: rgba(88,166,255,.15); border-color: var(--accent); color: var(--accent); }
+.step-dot.failover { background: var(--red-dim);       border-color: var(--red);    color: var(--red); }
+.step-dot.recover  { background: var(--green-dim);     border-color: var(--green);  color: var(--green); }
+.step-connector {
+  width: 2px; flex: 1; min-height: 16px;
+  background: var(--line); margin-top: 4px;
+}
+.step-connector:last-child { display: none; }
+
+.step-card {
+  flex: 1; background: var(--card); border: 1px solid var(--line);
+  border-radius: 12px; margin: 0 0 10px 12px; overflow: hidden;
+  cursor: pointer;
+}
+.step-card.failover-card { border-color: var(--red); }
+.step-card.recover-card  { border-color: var(--green); }
+
+.step-header {
+  display: flex; align-items: center; gap: 10px;
+  padding: 12px 16px;
+}
+.step-header .time { font-size: .75rem; color: var(--muted); font-family: 'JetBrains Mono', monospace; flex-shrink: 0; }
+.step-header .desc { flex: 1; font-size: .9rem; font-weight: 500; }
+.step-header .route-badge {
+  flex-shrink: 0; font-size: .72rem; font-weight: 700;
+  padding: 2px 9px; border-radius: 6px;
+}
+.route-badge.to1 { background: rgba(88,166,255,.15); color: var(--accent); }
+.route-badge.to2 { background: rgba(163,113,247,.15); color: var(--purple); }
+.route-badge.fail { background: var(--red-dim); color: var(--red); }
+.route-badge.ok   { background: var(--green-dim); color: var(--green); }
+
+.chevron { font-size: .6rem; color: var(--muted); transition: transform .2s; margin-left: 4px; }
+.step-header.open .chevron { transform: rotate(180deg); }
+
+.step-body { display: none; border-top: 1px solid var(--line); }
+.step-body.open { display: block; }
+
+/* ── HTTP panels inside step ── */
+.http-panels {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 1px;
+  background: var(--line);
+}
+.http-panels > div { background: var(--bg); padding: 14px 16px; }
+.panel-label { font-size: .7rem; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin-bottom: 8px; }
+pre.http {
+  font-family: 'JetBrains Mono', monospace; font-size: .75rem;
+  line-height: 1.65; white-space: pre-wrap; word-break: break-all;
+}
+.method  { color: var(--orange); font-weight: 700; }
+.status2 { color: var(--green); font-weight: 700; }
+.status4 { color: var(--red); font-weight: 700; }
+.hkey    { color: var(--teal); }
+.hval    { color: var(--muted); }
+.jkey    { color: var(--accent); }
+.jval    { color: #79c0ff; }
+.jstr    { color: var(--green); }
+.jnum    { color: var(--purple); }
+
+.nginx-log-wrap { background: var(--card2); border-top: 1px solid var(--line); padding: 12px 16px; }
+.nginx-log-label { font-size: .7rem; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin-bottom: 6px; }
+.nginx-log { font-family: 'JetBrains Mono', monospace; font-size: .73rem; line-height: 1.6; }
+.nginx-log .ts { color: var(--muted); }
+.nginx-log .ip { color: var(--orange); }
+.nginx-log .upstream { color: var(--teal); }
+.nginx-log .s200 { color: var(--green); }
+.nginx-log .s500 { color: var(--red); }
+.nginx-log .rt { color: var(--purple); }
+
+.explain-box {
+  background: var(--card2); border-top: 1px solid var(--line);
+  padding: 12px 16px; font-size: .83rem; color: var(--muted);
+}
+.explain-box strong { color: var(--ink); }
+
+/* ── Nginx state bar ── */
+.nginx-state {
+  background: var(--card); border: 1px solid var(--line);
+  border-radius: 12px; padding: 16px 20px; margin: 20px 0;
+}
+.nginx-state h3 { font-size: .85rem; font-weight: 600; margin-bottom: 12px; }
+.upstream-pool { display: flex; gap: 10px; flex-wrap: wrap; }
+.upstream-item {
+  flex: 1 1 160px; border-radius: 8px; border: 1.5px solid;
+  padding: 10px 14px; font-size: .82rem; font-weight: 600;
+  transition: all .4s;
+}
+.upstream-item.up   { background: var(--green-dim); border-color: var(--green); color: var(--green); }
+.upstream-item.down { background: var(--red-dim);   border-color: var(--red);   color: var(--red); }
+.upstream-item .u-label { font-size: .7rem; font-weight: 400; opacity: .8; margin-top: 2px; }
+.upstream-item .u-count { font-size: .78rem; margin-top: 4px; color: var(--muted); }
+</style>
+</head>
+<body>
+<div class="page">
+
+<header>
+  <h1>Nginx trong Banking Basic — Ví dụ thực tế</h1>
+  <p class="sub">Kịch bản: Alice và Bob chuyển tiền đồng thời, rồi <strong>api1 crash</strong>, Nginx tự failover, api1 hồi phục.</p>
+</header>
+
+<div class="scenario-label">
+  🏦 Bối cảnh: giờ cao điểm — 3 user gửi request đồng thời. api1 crash ở bước 5, hồi phục ở bước 7.
+</div>
+
+<!-- Actors -->
+<div class="section-title">Các thành phần</div>
+<div class="actors">
+  <div class="actor"><div class="avatar">👩</div><div class="name">Alice</div><div class="detail">account: Alice<br>Balance: 1000đ</div></div>
+  <div class="actor"><div class="avatar">👨</div><div class="name">Bob</div><div class="detail">account: Bob<br>Balance: 0đ</div></div>
+  <div class="actor"><div class="avatar">🧑</div><div class="name">Charlie</div><div class="detail">account: Charlie<br>Balance: 500đ</div></div>
+  <div class="actor nginx-actor"><div class="avatar">⚖️</div><div class="name">Nginx :80</div><div class="detail">load balancer<br>least_conn</div></div>
+  <div class="actor api1-actor"><div class="avatar">🖥️</div><div class="name">api1 :5199</div><div class="detail">API instance 1<br>Docker container</div></div>
+  <div class="actor api2-actor"><div class="avatar">🖥️</div><div class="name">api2 :5199</div><div class="detail">API instance 2<br>Docker container</div></div>
+  <div class="actor db-actor"><div class="avatar">🗄️</div><div class="name">Postgres</div><div class="detail">shared DB<br>cả 2 API dùng chung</div></div>
+</div>
+
+<!-- Nginx upstream state -->
+<div class="nginx-state" id="nginx-state-bar">
+  <h3>Trạng thái upstream pool của Nginx (thay đổi theo từng bước)</h3>
+  <div class="upstream-pool">
+    <div class="upstream-item up" id="pool-api1">
+      ● api1:5199 — UP
+      <div class="u-label">max_fails=2 | fail_timeout=10s</div>
+      <div class="u-count" id="pool-api1-count">requests handled: 0</div>
+    </div>
+    <div class="upstream-item up" id="pool-api2">
+      ● api2:5199 — UP
+      <div class="u-label">max_fails=2 | fail_timeout=10s</div>
+      <div class="u-count" id="pool-api2-count">requests handled: 0</div>
+    </div>
+  </div>
+</div>
+
+<!-- Steps -->
+<div class="section-title">Timeline — Nhấn từng bước để xem chi tiết</div>
+<div class="steps" id="steps"></div>
+
+</div>
+
+<script>
+const STEPS = [
+  {
+    time: 'T+0s', type: 'normal',
+    desc: 'Alice đăng nhập để lấy JWT token',
+    route: 'api1', routeLabel: '→ api1',
+    req: `<span class="method">POST</span> /api/v1/auth/login HTTP/1.1
+<span class="hkey">Host:</span> <span class="hval">localhost</span>
+<span class="hkey">Content-Type:</span> <span class="hval">application/json</span>
+<span class="hkey">X-Forwarded-For:</span> <span class="hval">203.x.x.10</span> <span class="hkey">← Nginx thêm vào</span>
+
+{
+  <span class="jkey">"username"</span>: <span class="jstr">"demo"</span>,
+  <span class="jkey">"password"</span>: <span class="jstr">"demo123"</span>
+}`,
+    res: `<span class="status2">HTTP/1.1 200 OK</span>
+<span class="hkey">Content-Type:</span> <span class="hval">application/json</span>
+
+{
+  <span class="jkey">"token"</span>: <span class="jstr">"eyJhbGciOiJIUzI1NiJ9
+            .eyJzdWIiOiIxIiwidW5pcX
+            VlX25hbWUiOiJkZW1vIn0
+            .abc123..."</span>,
+  <span class="jkey">"expiresAt"</span>: <span class="jstr">"2026-10-05T16:00:00Z"</span>
+}`,
+    log: `<span class="ts">[05/Oct/2026:08:00:00]</span> <span class="ip">203.x.x.10</span> → <span class="upstream">api1:5199</span> "POST /api/v1/auth/login" <span class="s200">200</span> rt=<span class="rt">0.023s</span>`,
+    explain: '<strong>Nginx chọn api1</strong> vì cả hai đang có 0 connection (least_conn). AllowAnonymous endpoint — không cần JWT. api1 xác thực password bằng PBKDF2, phát JWT HS256, trả token về Alice qua Nginx.',
+    api1: 1, api2: 0,
+  },
+  {
+    time: 'T+1s', type: 'normal',
+    desc: 'Bob đăng nhập — Nginx route sang api2 (least_conn)',
+    route: 'api2', routeLabel: '→ api2',
+    req: `<span class="method">POST</span> /api/v1/auth/login HTTP/1.1
+<span class="hkey">Host:</span> <span class="hval">localhost</span>
+<span class="hkey">Content-Type:</span> <span class="hval">application/json</span>
+<span class="hkey">X-Forwarded-For:</span> <span class="hval">203.x.x.11</span>
+
+{
+  <span class="jkey">"username"</span>: <span class="jstr">"demo"</span>,
+  <span class="jkey">"password"</span>: <span class="jstr">"demo123"</span>
+}`,
+    res: `<span class="status2">HTTP/1.1 200 OK</span>
+
+{
+  <span class="jkey">"token"</span>: <span class="jstr">"eyJhbGciOiJIUzI1NiJ9
+            .eyJzdWIiOiIxIn0
+            .xyz789..."</span>,
+  <span class="jkey">"expiresAt"</span>: <span class="jstr">"2026-10-05T16:00:01Z"</span>
+}`,
+    log: `<span class="ts">[05/Oct/2026:08:00:01]</span> <span class="ip">203.x.x.11</span> → <span class="upstream">api2:5199</span> "POST /api/v1/auth/login" <span class="s200">200</span> rt=<span class="rt">0.019s</span>`,
+    explain: '<strong>Nginx chọn api2</strong>: api1 đang có 1 active connection từ bước trước (chưa release hoàn toàn), api2 có 0 → least_conn chọn api2. <strong>Stateless quan trọng ở đây:</strong> Bob login qua api2 hoàn toàn độc lập với Alice login qua api1 — không có shared session, mỗi API tự verify JWT.',
+    api1: 1, api2: 1,
+  },
+  {
+    time: 'T+2s', type: 'normal',
+    desc: 'Alice chuyển 200đ cho Bob — POST /api/v1/transfers',
+    route: 'api1', routeLabel: '→ api1',
+    req: `<span class="method">POST</span> /api/v1/transfers HTTP/1.1
+<span class="hkey">Host:</span> <span class="hval">localhost</span>
+<span class="hkey">Authorization:</span> <span class="hval">Bearer eyJhbGciOiJIUzI1NiJ9...</span>
+<span class="hkey">Idempotency-Key:</span> <span class="hval">alice-to-bob-001</span>
+<span class="hkey">Content-Type:</span> <span class="hval">application/json</span>
+<span class="hkey">X-Forwarded-For:</span> <span class="hval">203.x.x.10</span>
+
+{
+  <span class="jkey">"fromAccountId"</span>: <span class="jstr">"11111111-1111-1111-1111-111111111111"</span>,
+  <span class="jkey">"toAccountId"</span>:   <span class="jstr">"22222222-2222-2222-2222-222222222222"</span>,
+  <span class="jkey">"amount"</span>: <span class="jnum">200</span>
+}`,
+    res: `<span class="status2">HTTP/1.1 200 OK</span>
+<span class="hkey">Content-Type:</span> <span class="hval">application/json</span>
+
+{
+  <span class="jkey">"transferId"</span>:     <span class="jstr">"a1b2c3d4-..."</span>,
+  <span class="jkey">"remainingBalance"</span>: <span class="jnum">800</span>,
+  <span class="jkey">"status"</span>:          <span class="jstr">"Completed"</span>,
+  <span class="jkey">"servedFromCache"</span>: <span class="jnum">false</span>
+}`,
+    log: `<span class="ts">[05/Oct/2026:08:00:02]</span> <span class="ip">203.x.x.10</span> → <span class="upstream">api1:5199</span> "POST /api/v1/transfers" <span class="s200">200</span> rt=<span class="rt">0.041s</span>`,
+    explain: '<strong>api1 xử lý toàn bộ trong 1 transaction:</strong> verify JWT → lock account versions (optimistic concurrency) → Alice.Balance 1000→800, Bob.Balance 0→200 → ghi 2 LedgerEntry (Debit + Credit) → INSERT IdempotencyRecord(key="alice-to-bob-001", status=Completed) → commit. <strong>Nginx hoàn toàn transparent</strong> — nó chỉ forward packet, không biết gì về nội dung business.',
+    api1: 2, api2: 1,
+  },
+  {
+    time: 'T+2.5s', type: 'normal',
+    desc: 'Charlie kiểm tra danh sách tài khoản — GET /api/v1/accounts',
+    route: 'api2', routeLabel: '→ api2',
+    req: `<span class="method">GET</span> /api/v1/accounts HTTP/1.1
+<span class="hkey">Host:</span> <span class="hval">localhost</span>
+<span class="hkey">Authorization:</span> <span class="hval">Bearer eyJhbGciOiJIUzI1NiJ9...</span>
+<span class="hkey">X-Forwarded-For:</span> <span class="hval">203.x.x.12</span>`,
+    res: `<span class="status2">HTTP/1.1 200 OK</span>
+
+[
+  { <span class="jkey">"id"</span>: <span class="jstr">"11111111..."</span>, <span class="jkey">"name"</span>: <span class="jstr">"Alice"</span>,   <span class="jkey">"balance"</span>: <span class="jnum">800</span> },
+  { <span class="jkey">"id"</span>: <span class="jstr">"22222222..."</span>, <span class="jkey">"name"</span>: <span class="jstr">"Bob"</span>,     <span class="jkey">"balance"</span>: <span class="jnum">200</span> },
+  { <span class="jkey">"id"</span>: <span class="jstr">"33333333..."</span>, <span class="jkey">"name"</span>: <span class="jstr">"Charlie"</span>, <span class="jkey">"balance"</span>: <span class="jnum">500</span> }
+]`,
+    log: `<span class="ts">[05/Oct/2026:08:00:02]</span> <span class="ip">203.x.x.12</span> → <span class="upstream">api2:5199</span> "GET /api/v1/accounts" <span class="s200">200</span> rt=<span class="rt">0.012s</span>`,
+    explain: '<strong>Charlie đi qua api2</strong> — hoàn toàn độc lập với request của Alice ở api1. api2 query cùng DB Postgres → thấy balance Alice=800 (đã update bởi api1 ở bước 3). Đây là ưu điểm của shared DB: mọi instance đọc cùng state mới nhất.',
+    api1: 2, api2: 2,
+  },
+  {
+    time: 'T+5s', type: 'failover',
+    desc: '🔴 api1 CRASH — container bị kill (OOM hoặc bug)',
+    route: 'fail', routeLabel: 'api1 ✗ DOWN',
+    req: `<span class="hval"># Không có request nào ở thời điểm crash</span>
+<span class="hval"># api1 container dừng đột ngột</span>
+
+<span class="hval"># Nginx phát hiện khi request tiếp theo</span>
+<span class="hval"># tới api1 bị refused (connect() failed)</span>
+<span class="hval"># → đếm failure: 1/2...</span>`,
+    res: `<span class="hval"># Nginx error log:</span>
+<span class="s500">2026/10/05 08:00:05 [error] connect() failed
+(111: Connection refused) while connecting
+to upstream, upstream: "api1:5199",
+client: 203.x.x.10</span>
+
+<span class="hval"># Sau max_fails=2 trong 10s:</span>
+<span class="s500">upstream server temporarily disabled
+while connecting to upstream "api1:5199"</span>`,
+    log: `<span class="ts">[05/Oct/2026:08:00:05]</span> <span class="s500">upstream timed out (111: Connection refused)
+  while connecting to upstream: api1:5199</span>
+<span class="ts">[05/Oct/2026:08:00:05]</span> <span class="s500">upstream "api1:5199" disabled for 10s</span>`,
+    explain: '<strong>Nginx tự phát hiện</strong>: request thứ 1 tới api1 → Connection refused (fail #1). Request thứ 2 tới api1 → Connection refused (fail #2 = max_fails). Nginx đánh dấu api1 là "temporarily disabled" trong fail_timeout=10s. Từ đây <strong>100% traffic chuyển sang api2</strong> — không cần con người can thiệp.',
+    api1: 2, api2: 2, api1down: true,
+  },
+  {
+    time: 'T+6s', type: 'failover',
+    desc: 'Alice retry chuyển tiền — Nginx route sang api2 (api1 đang down)',
+    route: 'api2', routeLabel: '→ api2 (failover)',
+    req: `<span class="method">POST</span> /api/v1/transfers HTTP/1.1
+<span class="hkey">Idempotency-Key:</span> <span class="hval">alice-to-bob-002</span>
+<span class="hkey">Authorization:</span> <span class="hval">Bearer eyJhbGciOiJIUzI1NiJ9...</span>
+<span class="hkey">X-Forwarded-For:</span> <span class="hval">203.x.x.10</span>
+
+{
+  <span class="jkey">"fromAccountId"</span>: <span class="jstr">"11111111-1111-1111-1111-111111111111"</span>,
+  <span class="jkey">"toAccountId"</span>:   <span class="jstr">"22222222-2222-2222-2222-222222222222"</span>,
+  <span class="jkey">"amount"</span>: <span class="jnum">300</span>
+}`,
+    res: `<span class="status2">HTTP/1.1 200 OK</span>
+
+{
+  <span class="jkey">"transferId"</span>:      <span class="jstr">"b2c3d4e5-..."</span>,
+  <span class="jkey">"remainingBalance"</span>: <span class="jnum">500</span>,
+  <span class="jkey">"status"</span>:           <span class="jstr">"Completed"</span>,
+  <span class="jkey">"servedFromCache"</span>:  <span class="jnum">false</span>
+}`,
+    log: `<span class="ts">[05/Oct/2026:08:00:06]</span> <span class="ip">203.x.x.10</span> → <span class="upstream">api2:5199</span> "POST /api/v1/transfers" <span class="s200">200</span> rt=<span class="rt">0.038s</span>
+<span class="hval">  # api1 vẫn disabled — không thử tới api1</span>`,
+    explain: '<strong>Alice không hề biết api1 đã crash.</strong> Request của Alice đến Nginx, Nginx thấy api1 disabled → chọn api2 ngay. api2 xử lý bình thường: verify JWT (HS256 key giống nhau), query DB (cùng Postgres), transfer Alice 800→500, Bob 200→500. <strong>Đây chính là giá trị của stateless web tier + shared DB:</strong> bất kỳ instance nào cũng xử lý được bất kỳ request nào.',
+    api1: 2, api2: 3, api1down: true,
+  },
+  {
+    time: 'T+15s', type: 'recover',
+    desc: '🟢 api1 hồi phục — Nginx tự đưa vào pool trở lại',
+    route: 'ok', routeLabel: 'api1 ✓ UP',
+    req: `<span class="hval"># Nginx probe: gửi 1 request thử nghiệm tới api1</span>
+<span class="hval"># sau khi fail_timeout=10s hết hạn</span>
+
+<span class="method">GET</span> /health HTTP/1.1
+<span class="hkey">Host:</span> <span class="hval">api1:5199</span>`,
+    res: `<span class="status2">HTTP/1.1 200 OK</span>
+
+{ <span class="jkey">"status"</span>: <span class="jstr">"healthy"</span> }
+
+<span class="hval"># Nginx log:</span>
+<span class="s200">upstream "api1:5199" re-enabled</span>`,
+    log: `<span class="ts">[05/Oct/2026:08:00:15]</span> <span class="ip">203.x.x.13</span> → <span class="upstream">api1:5199</span> "GET /health" <span class="s200">200</span> rt=<span class="rt">0.005s</span>
+<span class="hval">  # api1 passed probe → re-added to upstream pool</span>
+<span class="ts">[05/Oct/2026:08:00:15]</span> <span class="ip">203.x.x.14</span> → <span class="upstream">api2:5199</span> "GET /api/v1/accounts" <span class="s200">200</span> rt=<span class="rt">0.011s</span>
+<span class="ts">[05/Oct/2026:08:00:15]</span> <span class="ip">203.x.x.15</span> → <span class="upstream">api1:5199</span> "POST /api/v1/transfers" <span class="s200">200</span> rt=<span class="rt">0.040s</span>`,
+    explain: '<strong>Sau 10s (fail_timeout)</strong>, Nginx cho api1 một cơ hội: route 1 request probe vào. api1 trả 200 → failures counter reset về 0 → api1 được đưa vào pool trở lại. Load lại được phân phối đều hai instance. <strong>Không cần restart Nginx, không cần can thiệp thủ công.</strong>',
+    api1: 3, api2: 3, api1down: false,
+  },
+];
+
+const container = document.getElementById('steps');
+
+STEPS.forEach((s, i) => {
+  const isFailover = s.type === 'failover';
+  const isRecover  = s.type === 'recover';
+
+  const wrap = document.createElement('div');
+  wrap.className = 'step-wrap';
+
+  const lineCol = document.createElement('div');
+  lineCol.className = 'step-line-col';
+  const dot = document.createElement('div');
+  dot.className = 'step-dot ' + (isFailover ? 'failover' : isRecover ? 'recover' : 'normal');
+  dot.textContent = i + 1;
+  const conn = document.createElement('div');
+  conn.className = 'step-connector';
+  lineCol.appendChild(dot);
+  if (i < STEPS.length - 1) lineCol.appendChild(conn);
+
+  const card = document.createElement('div');
+  card.className = 'step-card' + (isFailover ? ' failover-card' : isRecover ? ' recover-card' : '');
+
+  const rb = s.route === 'fail' ? 'fail' : s.route === 'ok' ? 'ok' : s.route === 'api2' ? 'to2' : 'to1';
+  card.innerHTML = `
+    <div class="step-header" tabindex="0" role="button" aria-expanded="false">
+      <span class="time">${s.time}</span>
+      <span class="desc">${s.desc}</span>
+      <span class="route-badge ${rb}">${s.routeLabel}</span>
+      <span class="chevron">▼</span>
+    </div>
+    <div class="step-body">
+      <div class="http-panels">
+        <div>
+          <div class="panel-label">HTTP Request (client → Nginx → API)</div>
+          <pre class="http">${s.req}</pre>
+        </div>
+        <div>
+          <div class="panel-label">HTTP Response (API → Nginx → client)</div>
+          <pre class="http">${s.res}</pre>
+        </div>
+      </div>
+      <div class="nginx-log-wrap">
+        <div class="nginx-log-label">Nginx access/error log</div>
+        <div class="nginx-log">${s.log}</div>
+      </div>
+      <div class="explain-box">${s.explain}</div>
+    </div>`;
+
+  const hdr  = card.querySelector('.step-header');
+  const body = card.querySelector('.step-body');
+  function toggle() {
+    const open = body.classList.toggle('open');
+    hdr.classList.toggle('open', open);
+    hdr.setAttribute('aria-expanded', open);
+
+    // Update upstream pool bar
+    const a1 = document.getElementById('pool-api1');
+    const a2 = document.getElementById('pool-api2');
+    const c1 = document.getElementById('pool-api1-count');
+    const c2 = document.getElementById('pool-api2-count');
+    if (open) {
+      c1.textContent = `requests handled: ${s.api1}`;
+      c2.textContent = `requests handled: ${s.api2}`;
+      if (s.api1down === true) {
+        a1.className = 'upstream-item down';
+        a1.innerHTML = '● api1:5199 — DOWN <div class="u-label">max_fails=2 đã đạt, disabled 10s</div><div class="u-count">requests handled: ' + s.api1 + '</div>';
+      } else if (s.api1down === false || s.api1down === undefined) {
+        a1.className = 'upstream-item up';
+        a1.innerHTML = '● api1:5199 — UP <div class="u-label">max_fails=2 | fail_timeout=10s</div><div class="u-count">requests handled: ' + s.api1 + '</div>';
+      }
+      a2.innerHTML = '● api2:5199 — UP <div class="u-label">max_fails=2 | fail_timeout=10s</div><div class="u-count">requests handled: ' + s.api2 + '</div>';
+    }
+  }
+  hdr.addEventListener('click', toggle);
+  hdr.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); } });
+
+  wrap.appendChild(lineCol);
+  wrap.appendChild(card);
+  container.appendChild(wrap);
+});
+</script>
+</body>
+</html>

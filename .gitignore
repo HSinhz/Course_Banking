@@ -1,0 +1,10 @@
+bin/
+obj/
+*.db
+*.user
+.vs/
+node_modules/
+dist/
+.playwright-mcp/
+*.stackdump
+*.tsbuildinfo

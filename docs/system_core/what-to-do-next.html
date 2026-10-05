@@ -1,0 +1,366 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>What To Do Next — Banking Basic</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+:root {
+  --bg: #0f1117; --card: #181d27; --card2: #1e2433;
+  --ink: #e8edf5; --muted: #7a8799; --line: #2a3345;
+  --accent: #3b82f6; --accent-dim: #1e3a6e;
+  --green: #22c55e; --green-dim: #14532d;
+  --orange: #f59e0b; --orange-dim: #78350f;
+  --red: #ef4444; --red-dim: #7f1d1d;
+  color-scheme: dark;
+}
+@media (prefers-color-scheme: light) {
+  :root {
+    --bg: #f4f6fb; --card: #ffffff; --card2: #f0f4ff;
+    --ink: #18212e; --muted: #5c6b7e; --line: #dde3ec;
+    --accent: #2563eb; --accent-dim: #dbeafe;
+    --green: #16a34a; --green-dim: #dcfce7;
+    --orange: #d97706; --orange-dim: #fef3c7;
+    --red: #dc2626; --red-dim: #fee2e2;
+    color-scheme: light;
+  }
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg); color: var(--ink);
+  font: 15px/1.65 'Inter', system-ui, sans-serif;
+  padding: 32px 16px 72px;
+}
+
+/* ── Header ── */
+header { max-width: 820px; margin: 0 auto 36px; }
+header h1 { font-size: 1.6rem; font-weight: 700; letter-spacing: -.02em; }
+header .subtitle { color: var(--muted); font-size: .88rem; margin-top: 6px; }
+
+/* ── Done banner ── */
+.done-banner {
+  max-width: 820px; margin: 0 auto 32px;
+  background: var(--card); border: 1px solid var(--line); border-radius: 12px;
+  padding: 14px 20px; display: flex; align-items: center; gap: 14px;
+}
+.done-banner .icon { font-size: 1.4rem; flex-shrink: 0; }
+.done-banner p { font-size: .87rem; color: var(--muted); }
+.done-banner p strong { color: var(--green); }
+.done-list { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.done-tag {
+  background: var(--green-dim); color: var(--green);
+  border-radius: 6px; padding: 2px 9px; font-size: .78rem; font-weight: 600;
+}
+
+/* ── Priority bar ── */
+.priority-bar {
+  max-width: 820px; margin: 0 auto 28px;
+  display: flex; gap: 8px; flex-wrap: wrap;
+}
+.prio-chip {
+  flex: 1 1 150px; border-radius: 10px; padding: 12px 16px;
+  border: 1px solid var(--line); background: var(--card);
+}
+.prio-chip .num { font-size: 1.8rem; font-weight: 700; letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
+.prio-chip .lbl { font-size: .75rem; color: var(--muted); margin-top: 2px; }
+.prio-chip.high   .num { color: var(--red); }
+.prio-chip.medium .num { color: var(--orange); }
+.prio-chip.low    .num { color: var(--muted); }
+
+/* ── Section heading ── */
+.group-label {
+  max-width: 820px; margin: 0 auto 10px;
+  font-size: .72rem; font-weight: 700; color: var(--muted);
+  text-transform: uppercase; letter-spacing: .09em;
+}
+
+/* ── Todo cards ── */
+.cards { max-width: 820px; margin: 0 auto; display: flex; flex-direction: column; gap: 12px; }
+
+.todo-card {
+  background: var(--card); border: 1px solid var(--line); border-radius: 14px; overflow: hidden;
+}
+
+.todo-header {
+  display: flex; align-items: center; gap: 12px; padding: 15px 20px;
+  cursor: pointer; user-select: none;
+}
+.todo-header:hover { background: var(--card2); }
+
+.num-badge {
+  flex-shrink: 0; width: 30px; height: 30px; border-radius: 9px;
+  font-size: .8rem; font-weight: 700; display: flex; align-items: center; justify-content: center;
+  background: var(--accent); color: #fff;
+}
+.todo-header .info { flex: 1; min-width: 0; }
+.todo-header .info h3 { font-size: .95rem; font-weight: 600; }
+.todo-header .info .one-liner { font-size: .82rem; color: var(--muted); margin-top: 2px; }
+
+.prio-tag {
+  flex-shrink: 0; padding: 3px 10px; border-radius: 999px;
+  font-size: .73rem; font-weight: 700;
+}
+.prio-tag.high   { background: var(--red-dim);    color: var(--red); }
+.prio-tag.medium { background: var(--orange-dim);  color: var(--orange); }
+.prio-tag.low    { background: var(--line);         color: var(--muted); }
+.prio-tag.partial { background: var(--accent-dim); color: var(--accent); }
+
+.chevron { font-size: .6rem; color: var(--muted); transition: transform .2s; margin-left: 6px; }
+.todo-header.open .chevron { transform: rotate(180deg); }
+
+.todo-body {
+  display: none; border-top: 1px solid var(--line);
+  padding: 18px 20px 20px;
+}
+.todo-body.open { display: block; }
+
+.todo-body h4 { font-size: .8rem; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); margin-bottom: 8px; }
+.todo-body h4:not(:first-child) { margin-top: 18px; }
+
+.problem-box {
+  background: var(--red-dim); border-left: 3px solid var(--red);
+  border-radius: 0 8px 8px 0; padding: 10px 14px;
+  font-size: .85rem; margin-bottom: 4px;
+}
+
+.steps { display: flex; flex-direction: column; gap: 8px; }
+.step {
+  display: flex; gap: 10px; align-items: flex-start;
+  background: var(--card2); border: 1px solid var(--line);
+  border-radius: 8px; padding: 10px 14px;
+}
+.step-num {
+  flex-shrink: 0; width: 22px; height: 22px; border-radius: 6px;
+  background: var(--accent); color: #fff;
+  font-size: .72rem; font-weight: 700; display: flex; align-items: center; justify-content: center;
+  margin-top: 1px;
+}
+.step-body { font-size: .85rem; min-width: 0; }
+.step-body strong { display: block; font-weight: 600; margin-bottom: 2px; }
+.step-body span { color: var(--muted); }
+code {
+  font-family: 'JetBrains Mono', monospace; font-size: .82em;
+  background: rgba(59,130,246,.15); color: var(--accent);
+  padding: 1px 5px; border-radius: 4px;
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>What To Do Next</h1>
+  <p class="subtitle">Chỉ liệt kê các phần system design <strong>chưa làm hoặc làm chưa đủ</strong>, kèm hướng dẫn cụ thể cần implement gì.</p>
+</header>
+
+<!-- Already done -->
+<div class="done-banner">
+  <div class="icon">✅</div>
+  <div>
+    <p><strong>3 phần đã đầy đủ</strong> — không cần làm thêm:</p>
+    <div class="done-list">
+      <span class="done-tag">#1 Single server</span>
+      <span class="done-tag">#2 Separate DB tier</span>
+      <span class="done-tag">#9 Stateless web tier (JWT)</span>
+    </div>
+  </div>
+</div>
+
+<!-- Priority summary -->
+<div class="priority-bar">
+  <div class="prio-chip high">  <div class="num">3</div><div class="lbl">Ưu tiên cao — implement ngay</div></div>
+  <div class="prio-chip medium"><div class="num">4</div><div class="lbl">Ưu tiên vừa — nên có</div></div>
+  <div class="prio-chip low">   <div class="num">3</div><div class="lbl">Scale-out — khi traffic lớn</div></div>
+</div>
+
+<div class="group-label" style="margin-top:0">⚠ Ưu tiên cao — nên implement trong dự án này</div>
+<div class="cards" id="high"></div>
+
+<div class="group-label" style="margin-top:28px">📋 Ưu tiên vừa — nên có nhưng có thể làm sau</div>
+<div class="cards" id="medium"></div>
+
+<div class="group-label" style="margin-top:28px">🚀 Scale-out — chỉ cần khi traffic thực sự lớn</div>
+<div class="cards" id="low"></div>
+
+<script>
+const ITEMS = [
+  // ── HIGH ──
+  {
+    group: 'high', id: 7, title: 'Cache tier (Redis)',
+    prio: 'high', prio_label: 'Ưu tiên cao',
+    one_liner: 'Mọi request đang hit thẳng DB — thêm cache để giảm tải và tăng tốc.',
+    problem: 'GetAccountsQuery và GetTransferStatusQuery query DB mỗi lần, không cache gì cả. Khi nhiều user đọc cùng lúc, DB sẽ là bottleneck đầu tiên.',
+    steps: [
+      { title: 'Thêm Redis vào Docker Compose', detail: 'Thêm service redis:alpine, expose port 6379.' },
+      { title: 'Cài package', detail: 'dotnet add package Microsoft.Extensions.Caching.StackExchangeRedis' },
+      { title: 'Đăng ký trong DI', detail: 'services.AddStackExchangeRedisCache(o => o.Configuration = "localhost:6379")' },
+      { title: 'Inject IDistributedCache vào query handlers', detail: 'Check cache trước, miss → query DB → set cache với TTL (ví dụ 60s cho account list).' },
+      { title: 'Invalidate cache khi có write', detail: 'Sau TransferMoney thành công → xóa cache key của fromAccount và toAccount.' },
+    ]
+  },
+  {
+    group: 'high', id: 5, title: 'Load balancer',
+    prio: 'high', prio_label: 'Ưu tiên cao',
+    one_liner: 'Một server = single point of failure. LB cho phép chạy nhiều instance và tự failover.',
+    problem: 'Hiện tại chỉ có 1 instance trên localhost:5199. Nếu process crash, toàn bộ API down. Không có health check, không có failover.',
+    steps: [
+      { title: 'Thêm Nginx vào Docker Compose', detail: 'Thêm service nginx với image nginx:alpine, forward traffic từ port 80 sang các upstream.' },
+      { title: 'Cấu hình nginx.conf upstream', detail: 'upstream api { server api1:5199; server api2:5199; } — round robin mặc định.' },
+      { title: 'Chạy 2+ instance API', detail: 'Trong docker-compose: deploy: replicas: 2 cho service Banking.API.' },
+      { title: 'Thêm health check endpoint', detail: 'MapGet("/health", () => Results.Ok("healthy")) — Nginx dùng để loại server chết.' },
+      { title: 'Test failover', detail: 'Kill 1 container, verify traffic tự chuyển sang container còn lại.' },
+    ]
+  },
+  {
+    group: 'high', id: 12, title: 'Logging & Metrics (hoàn thiện)',
+    prio: 'partial', prio_label: 'Làm chưa đủ',
+    one_liner: 'Đang có ILogger console. Cần centralized log + metrics để vận hành được.',
+    problem: 'Log hiện tại chỉ ra console — không search được, không alert được, không có business metrics (số transfer/giờ, tỷ lệ lỗi…).',
+    steps: [
+      { title: 'Thêm Seq (centralized log)', detail: 'Chạy Seq bằng Docker, cấu hình Serilog sink → Seq. Tìm kiếm log qua UI tại localhost:5341.' },
+      { title: 'Cấu hình Serilog structured logging', detail: 'dotnet add package Serilog.AspNetCore — log dạng JSON với context (transferId, accountId, userId).' },
+      { title: 'Thêm metrics endpoint', detail: 'dotnet add package prometheus-net.AspNetCore — expose /metrics cho Prometheus scrape.' },
+      { title: 'Thêm business metrics', detail: 'Counter cho số transfer thành công/thất bại, Histogram cho latency mỗi endpoint.' },
+      { title: 'Grafana dashboard (optional)', detail: 'Chạy Grafana + Prometheus bằng Docker Compose, import dashboard banking.' },
+    ]
+  },
+  // ── MEDIUM ──
+  {
+    group: 'medium', id: 6, title: 'Database replication (Master-Slave)',
+    prio: 'medium', prio_label: 'Ưu tiên vừa',
+    one_liner: 'Một DB = SPOF và bottleneck đọc. Replication cho phép reads scale ra nhiều slave.',
+    problem: 'Cả writes lẫn reads đều đi vào 1 Postgres instance. Nếu DB down, toàn bộ hệ thống down.',
+    steps: [
+      { title: 'Cấu hình Postgres primary + replica trong Docker Compose', detail: 'Dùng bitvise/postgresql hay bitnami/postgresql với POSTGRES_REPLICATION_MODE.' },
+      { title: 'Thêm connection string cho replica', detail: 'appsettings.json: "ReadOnly": "Host=pg-replica;..." bên cạnh "Default".' },
+      { title: 'Tạo ReadOnlyDbContext hoặc dùng 2 connection', detail: 'Query handlers (GetAccounts, GetTransferStatus) dùng read replica; command handlers dùng master.' },
+      { title: 'Test failover master', detail: 'Promote replica lên master, verify writes tiếp tục hoạt động.' },
+    ]
+  },
+  {
+    group: 'medium', id: 3, title: 'NoSQL cho một số workload',
+    prio: 'partial', prio_label: 'Làm chưa đủ',
+    one_liner: 'Hiện tất cả đều trong Postgres. Sessions và logs phù hợp với NoSQL hơn.',
+    problem: 'Design doc khuyến nghị dùng NoSQL cho sessions, logs, feeds để giảm tải SQL. JWT đã giải quyết sessions, nhưng logs và audit trail vẫn nằm hoàn toàn trong Postgres.',
+    steps: [
+      { title: 'Cache vào Redis (xem mục #7)', detail: 'Redis là NoSQL key-value — giải quyết cả cache lẫn yêu cầu NoSQL của design doc.' },
+      { title: 'Logs vào Seq/Elasticsearch', detail: 'Structured logs ra Seq là dạng document store — đúng với khuyến nghị NoSQL cho logs.' },
+      { title: 'Không cần MongoDB riêng', detail: 'Với quy mô này, Redis + Seq là đủ để đáp ứng yêu cầu SQL+NoSQL của design doc.' },
+    ]
+  },
+  {
+    group: 'medium', id: 11, title: 'Message queue thực (broker)',
+    prio: 'partial', prio_label: 'Làm chưa đủ',
+    one_liner: 'Outbox pattern đúng concept nhưng dùng DB làm queue. Cần broker thực cho production.',
+    problem: 'OutboxProcessorHostedService poll DB mỗi giây — DB bị thêm load, throughput thấp, không có dead-letter queue, không có routing linh hoạt.',
+    steps: [
+      { title: 'Thêm RabbitMQ vào Docker Compose', detail: 'image: rabbitmq:3-management, expose port 5672 (AMQP) và 15672 (UI).' },
+      { title: 'Cài MassTransit hoặc RabbitMQ.Client', detail: 'dotnet add package MassTransit.RabbitMQ — abstraction dễ dùng hơn raw client.' },
+      { title: 'Publish InterbankTransferRequested event', detail: 'Thay vì ghi OutboxMessage vào DB, publish message lên queue sau khi commit Transfer.' },
+      { title: 'Consumer nhận và xử lý', detail: 'Worker service subscribe queue, gọi ExternalBankGateway, publish kết quả (Settled/Reversed).' },
+      { title: 'Giữ Outbox như safety net', detail: 'Outbox vẫn hữu ích như fallback nếu broker down — hai cơ chế bổ sung nhau.' },
+    ]
+  },
+  {
+    group: 'medium', id: 4, title: 'Horizontal scaling (nhiều instance)',
+    prio: 'medium', prio_label: 'Ưu tiên vừa',
+    one_liner: 'Web tier đã stateless (JWT) — sẵn sàng scale. Chỉ cần cấu hình chạy nhiều instance.',
+    problem: 'Một instance duy nhất bị giới hạn CPU/RAM của máy. Khi traffic tăng, cần thêm instance chứ không phải nâng cấp hardware.',
+    steps: [
+      { title: 'Làm xong Load balancer (#5) trước', detail: 'LB là điều kiện tiên quyết để chạy nhiều instance.' },
+      { title: 'Docker Compose replicas', detail: 'deploy: replicas: 3 trong docker-compose — 3 instance API cùng lúc.' },
+      { title: 'Đảm bảo không có shared in-memory state', detail: 'Kiểm tra không có static Dictionary hay List nào dùng làm state — project hiện tại OK.' },
+      { title: 'Distributed lock nếu cần', detail: 'OutboxProcessorHostedService trên nhiều instance sẽ race nhau. Thêm distributed lock (Redis SETNX) hoặc chuyển sang broker thực (#11).' },
+    ]
+  },
+  // ── LOW ──
+  {
+    group: 'low', id: 8, title: 'CDN cho static files',
+    prio: 'low', prio_label: 'Khi có frontend',
+    one_liner: 'Chỉ cần khi có frontend production build. Backend API không cần CDN.',
+    problem: 'Project hiện tại là pure REST API — không có static assets để CDN phục vụ. CDN chỉ apply khi deploy frontend (Vite build) ra production.',
+    steps: [
+      { title: 'Build Vite frontend', detail: 'npm run build → dist/ chứa JS/CSS/assets đã minify.' },
+      { title: 'Upload dist/ lên CDN', detail: 'AWS CloudFront + S3, hoặc Cloudflare Pages, hoặc Azure CDN.' },
+      { title: 'Set Cache-Control headers', detail: 'JS/CSS có hash tên file → max-age=31536000 (1 năm). index.html → no-cache.' },
+      { title: 'Cấu hình fallback', detail: 'Nếu CDN down, client fallback về origin server trực tiếp.' },
+    ]
+  },
+  {
+    group: 'low', id: 10, title: 'Multiple data centers + geoDNS',
+    prio: 'low', prio_label: 'Scale lớn',
+    one_liner: 'Cần khi user ở nhiều region khác nhau (VN, US, EU…) hoặc cần disaster recovery.',
+    problem: 'Toàn bộ infrastructure tập trung tại 1 location. Outage ở DC đó = toàn bộ user bị ảnh hưởng.',
+    steps: [
+      { title: 'Deploy stack lên 2 cloud regions', detail: 'Ví dụ: AWS ap-southeast-1 (Singapore) và us-east-1. Mỗi region chạy full stack.' },
+      { title: 'Cấu hình geoDNS', detail: 'AWS Route53 Geolocation routing: user VN → Singapore, user US → us-east-1.' },
+      { title: 'Async replication DB giữa 2 DC', detail: 'Postgres logical replication hoặc dùng managed DB (RDS Multi-Region Read Replica).' },
+      { title: 'Health check + failover', detail: 'Route53 health check: nếu DC1 down → tự route 100% sang DC2.' },
+    ]
+  },
+  {
+    group: 'low', id: 13, title: 'Database sharding',
+    prio: 'low', prio_label: 'Scale lớn',
+    one_liner: 'Chỉ cần khi một DB instance không đủ chứa toàn bộ data (hàng trăm triệu rows+).',
+    problem: 'Single Postgres instance có giới hạn về storage và write throughput. Khi data quá lớn, cần phân tán ra nhiều shard.',
+    steps: [
+      { title: 'Chọn shard key', detail: 'account_id hoặc user_id — phân bố đều, query thường đi theo một account.' },
+      { title: 'Implement sharding routing layer', detail: 'Middleware tính shard = account_id % N, chọn connection string tương ứng.' },
+      { title: 'Cân nhắc Citus (Postgres sharding extension)', detail: 'Citus cho phép shard Postgres ngang mà không cần thay ứng dụng nhiều.' },
+      { title: 'Cross-shard query', detail: 'JOIN giữa 2 shard khác nhau không dùng SQL bình thường — cần denormalize hoặc dùng aggregation service.' },
+      { title: 'Consistent hashing cho resharding', detail: 'Khi thêm shard mới, consistent hashing chỉ move một phần nhỏ data thay vì toàn bộ.' },
+    ]
+  },
+];
+
+function makeCard(item) {
+  const card = document.createElement('div');
+  card.className = 'todo-card';
+
+  const prioLabel = { high: 'Ưu tiên cao', medium: 'Ưu tiên vừa', low: 'Scale-out', partial: 'Làm chưa đủ' };
+
+  card.innerHTML = `
+    <div class="todo-header" tabindex="0" role="button" aria-expanded="false">
+      <div class="num-badge">${item.id}</div>
+      <div class="info">
+        <h3>${item.title}</h3>
+        <div class="one-liner">${item.one_liner}</div>
+      </div>
+      <span class="prio-tag ${item.prio}">${prioLabel[item.prio] || item.prio_label}</span>
+      <span class="chevron">▼</span>
+    </div>
+    <div class="todo-body">
+      <h4>Vấn đề hiện tại</h4>
+      <div class="problem-box">${item.problem}</div>
+      <h4 style="margin-top:16px">Cần làm gì</h4>
+      <div class="steps">
+        ${item.steps.map((s, i) => `
+          <div class="step">
+            <div class="step-num">${i+1}</div>
+            <div class="step-body">
+              <strong>${s.title}</strong>
+              <span>${s.detail}</span>
+            </div>
+          </div>`).join('')}
+      </div>
+    </div>`;
+
+  const hdr  = card.querySelector('.todo-header');
+  const body = card.querySelector('.todo-body');
+  function toggle() {
+    const open = body.classList.toggle('open');
+    hdr.classList.toggle('open', open);
+    hdr.setAttribute('aria-expanded', open);
+  }
+  hdr.addEventListener('click', toggle);
+  hdr.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); } });
+  return card;
+}
+
+['high','medium','low'].forEach(g => {
+  const container = document.getElementById(g);
+  ITEMS.filter(i => i.group === g).forEach(i => container.appendChild(makeCard(i)));
+});
+</script>
+</body>
+</html>

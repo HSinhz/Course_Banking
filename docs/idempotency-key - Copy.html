@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Idempotency-Key — Two Clicks, One Charge</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  :root{
+    --bg:#080b14; --panel:#0c1120; --ink:#e8eefc; --muted:#5f6f92; --faint:#33405f;
+    --amber:#e0a92e; --amber2:#ffcf6b; --teal:#27d3ff; --green:#22e08a; --red:#ff4d63;
+    --mono:'SF Mono',ui-monospace,'Cascadia Code',Menlo,Consolas,monospace;
+  }
+  body{background:var(--bg);color:var(--ink);font-family:var(--mono);
+       padding:26px 14px 50px;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+  .poster{max-width:660px;margin:0 auto;position:relative}
+
+  /* ---------- header ---------- */
+  .kicker{text-align:center;letter-spacing:.42em;font-size:11px;color:var(--muted);
+          text-transform:uppercase;margin-bottom:8px}
+  h1{text-align:center;font-size:clamp(44px,13vw,86px);font-weight:800;letter-spacing:.02em;
+     line-height:.92;background:linear-gradient(180deg,#fff,#8fa2c8);-webkit-background-clip:text;
+     background-clip:text;color:transparent}
+  .sub{text-align:center;color:#9fb0d4;font-size:15px;margin-top:12px}
+  .sub b{color:var(--green)}
+  .sub .r{color:var(--red)}
+  .pill{display:block;width:max-content;margin:14px auto 0;border:1px solid var(--faint);
+        border-radius:999px;padding:5px 15px;font-size:11px;letter-spacing:.22em;color:#c7d3ee;
+        text-transform:uppercase;transition:.3s}
+  .pill .dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--red);
+             margin-right:8px;box-shadow:0 0 10px var(--red);vertical-align:middle}
+  .pill.ok{border-color:rgba(34,224,138,.5)} .pill.ok .dot{background:var(--green);box-shadow:0 0 10px var(--green)}
+  .pill.warn{border-color:rgba(224,169,46,.5)} .pill.warn .dot{background:var(--amber);box-shadow:0 0 10px var(--amber)}
+
+  /* ---------- stage ---------- */
+  .stage{position:relative;margin-top:10px}
+  .counter{position:absolute;top:78px;z-index:3}
+  .counter .lbl{letter-spacing:.2em;font-size:10px;color:var(--muted);text-transform:uppercase}
+  .counter .num{font-size:52px;font-weight:800;line-height:1;margin-top:2px;transition:.2s}
+  .counter.l{left:6px}.counter.r{right:6px;text-align:right}
+  .num.teal{color:var(--teal);text-shadow:0 0 22px rgba(39,211,255,.5)}
+  .num.green{color:var(--green);text-shadow:0 0 22px rgba(34,224,138,.5)}
+  .num.red{color:var(--red);text-shadow:0 0 22px rgba(255,77,99,.5)}
+  .counter.r .side{font-size:11px;letter-spacing:.12em;color:var(--amber2);text-transform:uppercase;margin-top:6px;min-height:28px}
+
+  svg{width:100%;height:auto;display:block}
+  .bump{transition:transform .18s} .bump.hit{transform:scale(1.04)}
+
+  /* store chips */
+  .store{position:absolute;left:50%;transform:translateX(-50%);top:352px;width:210px;z-index:3;text-align:center}
+  .store .h{font-size:9.5px;letter-spacing:.16em;color:var(--muted);text-transform:uppercase;margin-bottom:5px}
+  .chips{display:flex;gap:5px;justify-content:center;flex-wrap:wrap;min-height:22px}
+  .chip{font-size:10px;padding:2px 7px;border-radius:6px;border:1px solid rgba(34,224,138,.4);
+        color:var(--green);background:rgba(34,224,138,.08)}
+  .chip.dup{border-color:var(--amber);color:var(--amber2);background:rgba(224,169,46,.12);animation:flash .6s 2}
+  @keyframes flash{50%{background:rgba(255,77,99,.25);border-color:var(--red)}}
+
+  /* ---------- browser ---------- */
+  .browser{margin-top:6px;border:1px solid #1c2740;border-radius:12px;background:linear-gradient(180deg,#0d1424,#0a0f1c);
+           overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.5)}
+  .bhead{display:flex;align-items:center;gap:8px;padding:9px 12px;border-bottom:1px solid #1c2740;background:#0b1220}
+  .bdot{width:11px;height:11px;border-radius:50%}
+  .bdot.a{background:#ff5f57}.bdot.b{background:#febc2e}.bdot.c{background:#28c840}
+  .urlbar{flex:1;margin:0 6px;background:#0a1120;border:1px solid #1c2740;border-radius:7px;
+          padding:4px 12px;font-size:12px;color:#8fa2c8}
+  .bright{font-size:9.5px;letter-spacing:.2em;color:var(--faint)}
+  .console{padding:12px 14px;min-height:132px;font-size:12px;line-height:1.7}
+  .cline{opacity:0;transform:translateY(4px);animation:in .25s forwards}
+  @keyframes in{to{opacity:1;transform:none}}
+  .cline .t{color:var(--faint);margin-right:8px}
+  .g{color:var(--green)}.a{color:var(--amber2)}.rd{color:var(--red)}.tl{color:var(--teal)}.mut{color:var(--muted)}
+
+  /* ---------- controls ---------- */
+  .controls{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:18px}
+  @media(max-width:520px){.controls{grid-template-columns:1fr}}
+  .btn{border:1px solid #22314f;background:#0e1526;color:var(--ink);border-radius:10px;
+       padding:13px 12px;font-family:var(--mono);font-size:13px;cursor:pointer;text-align:left;transition:.15s}
+  .btn:hover{border-color:#3a4d76;background:#121b30;transform:translateY(-1px)}
+  .btn:disabled{opacity:.4;cursor:not-allowed;transform:none}
+  .btn .bt{font-weight:700;display:block}
+  .btn .bd{font-size:10.5px;color:var(--muted);margin-top:2px;letter-spacing:.02em}
+  .btn.hero{border-color:rgba(34,224,138,.45)}.btn.hero:hover{border-color:var(--green)}
+  .btn.danger{border-color:rgba(255,77,99,.4)}.btn.danger:hover{border-color:var(--red)}
+  .btn.ghost{border-color:#22314f}
+
+  .verdict{margin-top:16px;border-radius:12px;padding:14px 16px;font-size:13px;line-height:1.55;
+           border:1px solid var(--faint);background:#0b1120;color:#b9c6e4;min-height:54px;transition:.3s}
+  .verdict.ok{border-color:rgba(34,224,138,.5);background:rgba(34,224,138,.07)}
+  .verdict.bad{border-color:rgba(255,77,99,.5);background:rgba(255,77,99,.08)}
+  .verdict b{color:#fff}
+  /* ---------- postgres section ---------- */
+  .pgwrap{margin-top:44px;border-top:1px solid #1c2740;padding-top:30px}
+  .pgkick{text-align:center;letter-spacing:.34em;font-size:10.5px;color:var(--muted);text-transform:uppercase}
+  .pgh{text-align:center;font-size:clamp(26px,7vw,40px);font-weight:800;line-height:1;margin-top:8px;
+       background:linear-gradient(180deg,#fff,#8fa2c8);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .pgsub{text-align:center;color:#9fb0d4;font-size:13px;margin-top:10px}
+  .pgsub b{color:var(--green)} .pgsub .r{color:var(--red)}
+  .psql{background:#0a0f1c;border:1px solid #1c2740;border-radius:10px;overflow:hidden;font-size:12px;margin-top:14px}
+  .psql .th{padding:7px 12px;border-bottom:1px solid #1c2740;background:#0b1220;display:flex;
+            justify-content:space-between;align-items:center;font-size:10.5px;letter-spacing:.14em;color:#8fa2c8;text-transform:uppercase}
+  .psql .body{padding:11px 13px;line-height:1.7}
+  .ddl .body{min-height:0}
+  .sessions{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}
+  @media(max-width:560px){.sessions{grid-template-columns:1fr}}
+  .sessions .body{min-height:196px}
+  .badge{font-size:9px;padding:2px 8px;border-radius:6px;border:1px solid var(--faint);color:var(--muted);letter-spacing:.1em}
+  .badge.run{border-color:var(--teal);color:var(--teal)} .badge.ok{border-color:var(--green);color:var(--green)}
+  .badge.err{border-color:var(--red);color:var(--red)} .badge.wait{border-color:var(--amber);color:var(--amber2)}
+  .pgline{opacity:0;transform:translateY(4px);animation:in .22s forwards}
+  .pl{color:#4a5876;margin-right:5px} .sqlk{color:#69c0ff} .sqls{color:#22e08a}
+  .res{color:#8fa2c8} .okx{color:var(--green)} .errx{color:var(--red)} .waitx{color:var(--amber2)} .mut{color:var(--faint)}
+  .pgfacts{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}
+  @media(max-width:560px){.pgfacts{grid-template-columns:1fr}}
+  .fact{border:1px solid #1c2740;border-radius:10px;padding:11px 13px;background:#0b1120;font-size:12px;line-height:1.5;color:#b9c6e4}
+  .fact b{color:#fff} .fact .fk{color:var(--amber2);font-size:10px;letter-spacing:.12em;text-transform:uppercase;display:block;margin-bottom:4px}
+  .pgctl{display:flex;gap:10px;margin-top:14px;flex-wrap:wrap}
+  .pgctl .btn{flex:1;min-width:150px}
+  /* ---------- defense in depth ---------- */
+  .didwrap{margin-top:44px;border-top:1px solid #1c2740;padding-top:30px}
+  .didstage{position:relative;margin-top:10px}
+  .lyr{transition:stroke-width .15s,filter .2s;cursor:default}
+  .lyr.pass{stroke-width:3}
+  .lyr.block{stroke:#ff4d63 !important;stroke-width:3.5;filter:drop-shadow(0 0 9px rgba(255,77,99,.75))}
+  .lyrtx{font-family:var(--mono);font-size:11px;letter-spacing:.06em}
+  .didnet{margin-top:10px;border:1px solid #163a28;border-radius:10px;background:rgba(34,224,138,.05);
+          padding:9px 13px;font-size:11.5px;color:#7fcfa4;transition:.3s;display:flex;align-items:center;gap:10px}
+  .didnet.lit{border-color:var(--green);box-shadow:0 0 20px rgba(34,224,138,.25);color:#bfeed6}
+  .didnet .tag{font-size:9px;letter-spacing:.14em;text-transform:uppercase;border:1px solid currentColor;border-radius:6px;padding:2px 7px}
+  .threats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:14px}
+  @media(max-width:560px){.threats{grid-template-columns:1fr 1fr}}
+  .tbtn{border:1px solid #22314f;background:#0e1526;color:#cdd8ee;border-radius:9px;padding:9px 8px;
+        font-family:var(--mono);font-size:11px;cursor:pointer;transition:.15s;line-height:1.3;text-align:center}
+  .tbtn:hover{border-color:#3a4d76;background:#121b30}
+  .tbtn:disabled{opacity:.4;cursor:not-allowed}
+  .didcap{margin-top:14px;border-radius:12px;padding:13px 15px;font-size:12.5px;line-height:1.55;
+          border:1px solid var(--faint);background:#0b1120;color:#b9c6e4;min-height:50px;transition:.3s}
+  .didcap.on{border-color:rgba(255,77,99,.5);background:rgba(255,77,99,.07)}
+  .didcap b{color:#fff} .didcap .ly{color:var(--amber2)}
+  .foot{text-align:center;color:var(--faint);font-size:11px;letter-spacing:.1em;margin-top:22px;text-transform:uppercase}
+</style>
+</head>
+<body>
+<div class="poster">
+  <div class="kicker">Idempotent Money Transfer</div>
+  <h1>IDEMPOTENCY<br>KEY</h1>
+  <p class="sub">two clicks. <b>one charge.</b> <span class="r">the same key</span> made the retry free.</p>
+  <div class="pill" id="pill"><span class="dot"></span><span id="pillText">Press an action below</span></div>
+
+  <div class="stage">
+    <div class="counter l"><div class="lbl">Requests sent</div><div class="num teal" id="cReq">0</div></div>
+    <div class="counter r"><div class="lbl">Times charged</div><div class="num green" id="cChg">0</div>
+      <div class="side" id="cSide"></div></div>
+
+    <div class="store">
+      <div class="h">IdempotencyRecords · UNIQUE(Key)</div>
+      <div class="chips" id="chips"></div>
+    </div>
+
+    <svg viewBox="0 0 600 540" role="img" aria-label="Idempotency key flow">
+      <defs>
+        <radialGradient id="glow" cx="50%" cy="34%" r="46%">
+          <stop offset="0%" stop-color="#e0a92e" stop-opacity=".22"/>
+          <stop offset="45%" stop-color="#e0a92e" stop-opacity=".06"/>
+          <stop offset="100%" stop-color="#e0a92e" stop-opacity="0"/>
+        </radialGradient>
+        <linearGradient id="bld" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#ffcf6b"/><stop offset="100%" stop-color="#c98a1e"/>
+        </linearGradient>
+        <filter id="soft"><feGaussianBlur stdDeviation="2.2"/></filter>
+      </defs>
+
+      <rect x="0" y="0" width="600" height="540" fill="url(#glow)"/>
+
+      <!-- connector guide paths (also used for animation) -->
+      <path id="laneA" d="M262,498 C255,430 268,378 296,344" fill="none" stroke="#1f2b45" stroke-width="1.5"/>
+      <path id="laneB" d="M338,498 C345,430 332,378 304,344" fill="none" stroke="#1f2b45" stroke-width="1.5"/>
+      <path id="toServer" d="M300,300 L300,236" fill="none" stroke="#2a3a5c" stroke-width="1.5" stroke-dasharray="4 4"/>
+      <path id="replyOK" d="M300,236 C430,300 405,438 344,498" fill="none" stroke="#14321f" stroke-width="1.5"/>
+      <path id="replyCached" d="M300,300 C300,384 262,452 280,498" fill="none" stroke="#3a2f14" stroke-width="1.5"/>
+
+      <!-- SERVER (core banking) -->
+      <g id="server" class="bump">
+        <rect x="232" y="120" width="136" height="116" rx="7" fill="url(#bld)"/>
+        <rect x="286" y="196" width="28" height="40" rx="2" fill="#8a5e14"/>
+        <g fill="#7a5210">
+          <rect x="246" y="134" width="20" height="9" rx="1.5"/><rect x="274" y="134" width="20" height="9" rx="1.5"/>
+          <rect x="302" y="134" width="20" height="9" rx="1.5"/><rect x="330" y="134" width="20" height="9" rx="1.5"/>
+          <rect x="246" y="150" width="20" height="9" rx="1.5"/><rect x="274" y="150" width="20" height="9" rx="1.5"/>
+          <rect x="302" y="150" width="20" height="9" rx="1.5"/><rect x="330" y="150" width="20" height="9" rx="1.5"/>
+          <rect x="246" y="166" width="20" height="9" rx="1.5"/><rect x="274" y="166" width="20" height="9" rx="1.5"/>
+          <rect x="302" y="166" width="20" height="9" rx="1.5"/><rect x="330" y="166" width="20" height="9" rx="1.5"/>
+          <rect x="246" y="182" width="20" height="9" rx="1.5"/><rect x="274" y="182" width="20" height="9" rx="1.5"/>
+          <rect x="302" y="182" width="20" height="9" rx="1.5"/><rect x="330" y="182" width="20" height="9" rx="1.5"/>
+        </g>
+        <text x="300" y="110" text-anchor="middle" fill="#8b96b3" font-size="10" letter-spacing="2">CORE BANKING · LEDGER</text>
+      </g>
+
+      <!-- GUARD: the UNIQUE(Key) constraint -->
+      <g id="guard">
+        <path d="M300,286 L328,298 L328,322 C328,338 314,350 300,356 C286,350 272,338 272,322 L272,298 Z"
+              fill="#0e1830" stroke="#2f6bff" stroke-width="2"/>
+        <path id="guardCheck" d="M289,320 l7,7 l14,-15" fill="none" stroke="#27d3ff" stroke-width="3"
+              stroke-linecap="round" stroke-linejoin="round"/>
+        <circle id="guardPulse" cx="300" cy="292" r="4" fill="#ff4d63"/>
+        <text x="300" y="375" text-anchor="middle" fill="#7f8db0" font-size="10" letter-spacing="1.5">PRIMARY KEY GUARD</text>
+      </g>
+
+      <!-- moving packets injected by JS -->
+      <g id="packets"></g>
+    </svg>
+  </div>
+
+  <div class="browser">
+    <div class="bhead">
+      <span class="bdot a"></span><span class="bdot b"></span><span class="bdot c"></span>
+      <span class="urlbar">banking-basic.app / transfer</span>
+      <span class="bright">CONSOLE</span>
+    </div>
+    <div class="console" id="console"></div>
+  </div>
+
+  <div class="controls">
+    <button class="btn hero" id="bSame" onclick="scenarioSameKey()">
+      <span class="bt">▶ Double-click · SAME key</span>
+      <span class="bd">2 request, cùng Idempotency-Key → chỉ trừ 1 lần</span>
+    </button>
+    <button class="btn danger" id="bNew" onclick="scenarioNewKeys()">
+      <span class="bt">▶ Double-click · NEW key mỗi lần</span>
+      <span class="bd">2 key khác nhau → server tưởng 2 lệnh → trừ 2 lần ⚠</span>
+    </button>
+    <button class="btn" id="bOne" onclick="scenarioSingle()">
+      <span class="bt">▶ Chuyển thành công (1 lần)</span>
+      <span class="bd">1 request → 200 Completed, tiền chuyển đúng 1 lần</span>
+    </button>
+    <button class="btn ghost" id="bReset" onclick="resetAll()">
+      <span class="bt">⟳ Reset</span>
+      <span class="bd">Xoá key store, số dư & console về đầu</span>
+    </button>
+  </div>
+
+  <div class="verdict" id="verdict">
+    <b>Idempotency-Key</b> = một mã duy nhất cho <b>một lần bấm chuyển</b>. Bấm một nút phía trên để xem
+    điều gì xảy ra khi cùng lệnh bị gửi nhiều lần.
+  </div>
+
+  <!-- ================= POSTGRES ================= -->
+  <div class="pgwrap">
+    <div class="pgkick">How it holds on Postgres</div>
+    <div class="pgh">THE KEY IS THE LAW</div>
+    <p class="pgsub">hai request song song, <span class="r">một key</span> → Postgres để <b>một</b> thắng,
+      cái kia lãnh <b>23505</b>.</p>
+
+    <!-- DDL -->
+    <div class="psql ddl">
+      <div class="th"><span>schema · the arbiter</span><span class="badge">DDL</span></div>
+      <div class="body">
+        <div><span class="sqlk">CREATE TABLE</span> <span class="res">"IdempotencyRecords"</span> (</div>
+        <div>&nbsp;&nbsp;<span class="res">"Key"</span> <span class="sqlk">text</span> <span class="sqlk">PRIMARY KEY</span>,
+          <span class="mut">-- = UNIQUE + NOT NULL = trọng tài chống trùng</span></div>
+        <div>&nbsp;&nbsp;<span class="res">"Status"</span> <span class="sqlk">int</span>,
+          <span class="res">"ResponseBody"</span> <span class="sqlk">text</span>,
+          <span class="res">"CreatedAt"</span> <span class="sqlk">timestamptz</span></div>
+        <div>);</div>
+      </div>
+    </div>
+
+    <!-- two racing sessions -->
+    <div class="sessions">
+      <div class="psql">
+        <div class="th"><span>Session A · request #1</span><span class="badge" id="pgBadgeA">idle</span></div>
+        <div class="body" id="pgBodyA"></div>
+      </div>
+      <div class="psql">
+        <div class="th"><span>Session B · request #2 (same key)</span><span class="badge" id="pgBadgeB">idle</span></div>
+        <div class="body" id="pgBodyB"></div>
+      </div>
+    </div>
+
+    <div class="pgctl">
+      <button class="btn hero" id="pgPlay" onclick="playRace()">
+        <span class="bt">▶ Play the race (same key)</span>
+        <span class="bd">Hai INSERT cùng key chạy đua trên Postgres</span>
+      </button>
+      <button class="btn ghost" id="pgReset" onclick="resetRace()">
+        <span class="bt">⟳ Reset race</span>
+        <span class="bd">Xoá 2 phiên psql</span>
+      </button>
+    </div>
+
+    <div class="pgfacts">
+      <div class="fact"><span class="fk">① INSERT-first</span>
+        Không dùng <b>SELECT rồi INSERT</b> (có khe hở race giữa 2 lệnh). Cứ <b>INSERT thẳng</b> và để
+        ràng buộc khoá làm trọng tài.</div>
+      <div class="fact"><span class="fk">② Row lock · B chờ A</span>
+        Khi A đã INSERT key nhưng chưa commit, B INSERT cùng key sẽ <b>bị chặn (chờ)</b> cho tới khi A
+        commit/rollback — Postgres không cho hai bản ghi cùng khoá tồn tại.</div>
+      <div class="fact"><span class="fk">③ 23505 · unique_violation</span>
+        A commit → B nhận <b>duplicate key value violates unique constraint</b> (SQLSTATE <b>23505</b>).
+        App bắt lỗi này và <b>trả cache</b> thay vì trừ tiền lần nữa.</div>
+      <div class="fact"><span class="fk">④ Một transaction nguyên tử</span>
+        Claim key + trừ/cộng tiền + đóng dấu <b>Completed</b> trong <b>cùng một transaction</b> → key và tiền
+        luôn đồng bộ: hoặc cả hai, hoặc không gì.</div>
+    </div>
+  </div>
+
+  <!-- ================= DEFENSE IN DEPTH ================= -->
+  <div class="didwrap">
+    <div class="pgkick">Not one wall — five</div>
+    <div class="pgh">DEFENSE IN DEPTH</div>
+    <p class="pgsub">chọn một <span class="r">mối đe doạ</span> → xem nó bị chặn ở <b>lớp nào</b>.
+      Lớp càng sâu càng đáng tin.</p>
+
+    <div class="didstage">
+      <svg viewBox="0 0 600 300" role="img" aria-label="Defense in depth layers">
+        <!-- nested layers: L1 outer → L4 vault -->
+        <rect id="L1" class="lyr" x="24"  y="30"  width="552" height="240" rx="14" fill="rgba(39,211,255,.04)"  stroke="#27d3ff" stroke-width="1.5"/>
+        <rect id="L2" class="lyr" x="80"  y="66"  width="440" height="168" rx="12" fill="rgba(105,192,255,.05)" stroke="#69c0ff" stroke-width="1.5"/>
+        <rect id="L3" class="lyr" x="136" y="102" width="328" height="96"  rx="11" fill="rgba(201,138,240,.06)" stroke="#c98af0" stroke-width="1.5"/>
+        <rect id="L4" class="lyr" x="200" y="138" width="200" height="52"  rx="10" fill="rgba(255,207,107,.10)" stroke="#ffcf6b" stroke-width="2"/>
+
+        <text class="lyrtx" x="34"  y="46"  fill="#27d3ff">L1 · BROWSER</text>
+        <text class="lyrtx" x="90"  y="82"  fill="#69c0ff">L2 · API</text>
+        <text class="lyrtx" x="146" y="118" fill="#c98af0">L3 · HANDLER</text>
+        <text class="lyrtx" x="300" y="168" fill="#ffcf6b" text-anchor="middle" style="font-weight:700">L4 · DATABASE 🔒</text>
+
+        <!-- probe -->
+        <g id="probe" opacity="0">
+          <circle r="11" fill="#ff4d63" opacity=".22"/><circle r="5" fill="#ff4d63"/>
+        </g>
+        <text id="blockTag" x="300" y="16" text-anchor="middle" fill="#ff4d63"
+              font-family="var(--mono)" font-size="11" letter-spacing="1" opacity="0">⛔ BLOCKED</text>
+      </svg>
+    </div>
+
+    <!-- L5 recovery net (out-of-band, async) -->
+    <div class="didnet" id="L5"><span class="tag">L5 · recovery</span>
+      Lưới an toàn nền: <b>Outbox worker</b> (P14) chạy lại lệnh bị crash · <b>Reconciliation</b> (P16) đối soát giao dịch kẹt Pending.</div>
+
+    <div class="threats">
+      <button class="tbtn" onclick="threat('nokey')">Thiếu Idempotency-Key</button>
+      <button class="tbtn" onclick="threat('noauth')">Chưa đăng nhập (no JWT)</button>
+      <button class="tbtn" onclick="threat('dblclick')">Double-click (tuần tự)</button>
+      <button class="tbtn" onclick="threat('parallel')">2 request song song · cùng key</button>
+      <button class="tbtn" onclick="threat('lostupdate')">Lost update (2 lệnh, cùng TK)</button>
+      <button class="tbtn" onclick="threat('crash')">Crash giữa transaction</button>
+    </div>
+
+    <div class="didcap" id="didcap">Bấm một mối đe doạ để xem lớp nào chặn nó. <b>Defense in depth</b> =
+      nhiều lớp độc lập; một lớp thủng vẫn còn lớp sau.</div>
+  </div>
+
+  <div class="foot">source of truth: UNIQUE(Key) on IdempotencyRecords</div>
+</div>
+
+<script>
+const AMOUNT = 200, START = 1000;
+const $ = id => document.getElementById(id);
+const svgNS = 'http://www.w3.org/2000/svg';
+
+let seen = new Set();      // "IdempotencyRecords" — keys đã Completed
+let requests = 0, charged = 0, balance = START, busy = false;
+
+const pathById = id => $(id);
+const short = k => k.slice(0,4);
+
+function setPill(text, cls){ const p=$('pill'); p.className='pill '+(cls||''); $('pillText').textContent=text; }
+function setNums(){ $('cReq').textContent=requests; $('cChg').textContent=charged; }
+function bump(el){ el.classList.add('hit'); setTimeout(()=>el.classList.remove('hit'),180); }
+
+function log(html){
+  const d=document.createElement('div'); d.className='cline';
+  const now = 't'+String(requests).padStart(2,'0');
+  d.innerHTML='<span class="t">'+now+'</span>'+html; $('console').appendChild(d);
+  $('console').scrollTop = $('console').scrollHeight;
+}
+function chip(key, dup){
+  const c=document.createElement('span'); c.className='chip'+(dup?' dup':'');
+  c.textContent = short(key)+'…'+(dup?' DUP':' ✓'); $('chips').appendChild(c);
+  if(dup) setTimeout(()=>c.remove(), 1400);
+}
+
+// animate a <g> packet along an SVG path
+function move(packet, path, dur, stopAt=1){
+  return new Promise(res=>{
+    const len=path.getTotalLength(); let s=null;
+    (function frame(ts){
+      if(!s)s=ts; const t=Math.min((ts-s)/dur,1);
+      const e = t<.5 ? 2*t*t : 1-Math.pow(-2*t+2,2)/2; // easeInOut
+      const p=path.getPointAtLength(len*e*stopAt);
+      packet.setAttribute('transform',`translate(${p.x},${p.y})`);
+      t<1 ? requestAnimationFrame(frame) : res();
+    })(performance.now());
+  });
+}
+function makePacket(color){
+  const g=document.createElementNS(svgNS,'g');
+  g.innerHTML=`<circle r="11" fill="${color}" opacity=".25" filter="url(#soft)"/>
+               <circle r="5" fill="${color}"/>`;
+  $('packets').appendChild(g); return g;
+}
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+
+// one request carrying a key, on lane A or B
+async function sendRequest(key, lane){
+  requests++; setNums();
+  log(`<span class="tl">POST /transfers</span> <span class="mut">Idempotency-Key:</span> ${short(key)}…`);
+  const isDup = seen.has(key);
+  const packet = makePacket(isDup ? '#ffcf6b' : '#27d3ff');
+  await move(packet, pathById(lane), 720);           // browser → guard
+
+  if(isDup){
+    // blocked by UNIQUE(Key): return cached, no re-charge
+    bump($('guard')); chip(key,true);
+    packet.querySelector('circle:last-child').setAttribute('fill','#ffcf6b');
+    await move(packet, pathById('replyCached'), 640);
+    log(`<span class="a">200 OK</span> <span class="mut">served from cache — no re-charge</span>`);
+    packet.remove(); return 'cached';
+  }
+  // first time: pass guard → server, move money, reply 200
+  seen.add(key); chip(key,false);
+  await move(packet, pathById('toServer'), 380);
+  bump($('server'));
+  charged++; balance -= AMOUNT; setNums();
+  await sleep(120);
+  await move(packet, pathById('replyOK'), 700);
+  packet.querySelector('circle:last-child').setAttribute('fill','#22e08a');
+  log(`<span class="g">200 Completed</span> <span class="mut">money moved · balance ${balance}</span>`);
+  packet.remove(); return 'charged';
+}
+
+function lock(v){ busy=v; ['bSame','bNew','bOne','bReset'].forEach(id=>$(id).disabled=v); }
+
+async function scenarioSameKey(){
+  if(busy) return; lock(true);
+  setPill('Same key · charged once','warn');
+  const key = crypto.randomUUID();
+  await sendRequest(key,'laneA');           // #1 charges
+  await sleep(180);
+  await sendRequest(key,'laneB');           // #2 same key → cached
+  $('verdict').className='verdict ok';
+  $('verdict').innerHTML=`✅ <b>Cùng một key</b> gửi 2 lần → request #1 chuyển tiền, request #2 đụng
+    <b>UNIQUE(Key)</b> nên bị chặn và trả <b>cache</b>. <b>Requests = 2</b> nhưng <b>Times charged = 1</b>.
+    Đây chính là idempotency: gửi lại bao nhiêu lần cũng chỉ trừ đúng một lần.`;
+  setPill('2 requests → 1 charge','ok');
+  lock(false);
+}
+
+async function scenarioNewKeys(){
+  if(busy) return; lock(true);
+  setPill('New key each click · DANGER','warn');
+  await sendRequest(crypto.randomUUID(),'laneA');
+  await sleep(180);
+  await sendRequest(crypto.randomUUID(),'laneB');   // different key → charged again
+  $('cChg').className='num red'; $('cSide').textContent='CHARGED TWICE';
+  $('verdict').className='verdict bad';
+  $('verdict').innerHTML=`⚠ <b>Mỗi lần bấm sinh key MỚI</b> → server coi là 2 lệnh khác nhau, không có gì để
+    đối chiếu → <b>trừ tiền 2 lần</b> (balance ${balance}). Đây là lý do key phải được sinh <b>một lần</b>
+    và <b>giữ nguyên</b> qua mọi lần retry.`;
+  setPill('2 requests → 2 charges','warn');
+  lock(false);
+}
+
+async function scenarioSingle(){
+  if(busy) return; lock(true);
+  setPill('Single transfer','ok');
+  await sendRequest(crypto.randomUUID(),'laneA');
+  $('verdict').className='verdict ok';
+  $('verdict').innerHTML=`✅ Một request, một key → qua <b>PRIMARY KEY guard</b>, ghi sổ, <b>200 Completed</b>.
+    Key được lưu vào <b>IdempotencyRecords</b> để nếu có retry sau này thì trả cache thay vì trừ lại.`;
+  setPill('1 request → 1 charge','ok');
+  lock(false);
+}
+
+function resetAll(){
+  if(busy) return;
+  seen=new Set(); requests=0; charged=0; balance=START;
+  setNums(); $('cChg').className='num green'; $('cSide').textContent='';
+  $('chips').innerHTML=''; $('console').innerHTML=''; $('packets').innerHTML='';
+  $('verdict').className='verdict';
+  $('verdict').innerHTML=`<b>Idempotency-Key</b> = một mã duy nhất cho <b>một lần bấm chuyển</b>.
+    Bấm một nút phía trên để xem điều gì xảy ra khi cùng lệnh bị gửi nhiều lần.`;
+  setPill('Press an action below','');
+}
+setNums();
+
+/* ================= POSTGRES RACE ================= */
+const KEY = 'a3f9…';
+const P = who => $('pgBody'+who);
+const setBadge=(who,text,cls)=>{const b=$('pgBadge'+who);b.textContent=text;b.className='badge '+(cls||'');};
+function pgLine(who, html){
+  const d=document.createElement('div'); d.className='pgline'; d.innerHTML=html;
+  P(who).appendChild(d); P(who).scrollTop=P(who).scrollHeight;
+}
+const prompt='<span class="pl">banking=#</span>';
+
+// [who, html, delayAfter, [badgeText,badgeCls]?]
+const RACE=[
+ ['A', prompt+' <span class="sqlk">BEGIN</span>;', 420, ['running','run']],
+ ['A', '<span class="res">BEGIN</span>', 500],
+ ['B', prompt+' <span class="sqlk">BEGIN</span>;', 420, ['running','run']],
+ ['B', '<span class="res">BEGIN</span>', 550],
+ ['A', prompt+' <span class="sqlk">INSERT INTO</span> <span class="res">"IdempotencyRecords"</span>(<span class="res">"Key"</span>) <span class="sqlk">VALUES</span> (<span class="sqls">\''+KEY+'\'</span>);', 500],
+ ['A', '<span class="okx">INSERT 0 1</span> <span class="mut">-- giữ row lock trên Key='+KEY+'</span>', 700],
+ ['B', prompt+' <span class="sqlk">INSERT INTO</span> <span class="res">"IdempotencyRecords"</span>(<span class="res">"Key"</span>) <span class="sqlk">VALUES</span> (<span class="sqls">\''+KEY+'\'</span>);', 350],
+ ['B', '<span class="waitx">⏳ waiting… (chờ transaction A vì cùng Key)</span>', 1100, ['blocked','wait']],
+ ['A', '<span class="mut">-- trong cùng transaction: trừ nguồn, cộng đích, ghi sổ --</span>', 700],
+ ['A', prompt+' <span class="sqlk">COMMIT</span>;', 450],
+ ['A', '<span class="okx">COMMIT</span> <span class="mut">· money moved ONCE</span>', 650, ['committed ✓','ok']],
+ ['B', '<span class="errx">ERROR: duplicate key value violates unique constraint "IdempotencyRecords_pkey"</span>', 350],
+ ['B', '<span class="errx">DETAIL: Key ("Key")=('+KEY+') already exists.</span> <span class="mut">SQLSTATE 23505</span>', 750, ['23505','err']],
+ ['B', prompt+' <span class="sqlk">ROLLBACK</span>;', 450],
+ ['B', '<span class="okx">→ app bắt 23505 → trả cached 200 (no re-charge)</span>', 300],
+];
+
+let racing=false;
+async function playRace(){
+  if(racing) return; racing=true;
+  $('pgPlay').disabled=true; $('pgReset').disabled=true;
+  P('A').innerHTML=''; P('B').innerHTML='';
+  for(const [who,html,delay,badge] of RACE){
+    pgLine(who,html);
+    if(badge) setBadge(who,badge[0],badge[1]);
+    await sleep(delay);
+  }
+  $('pgPlay').disabled=false; $('pgReset').disabled=false; racing=false;
+}
+function resetRace(){
+  if(racing) return;
+  P('A').innerHTML=''; P('B').innerHTML='';
+  setBadge('A','idle',''); setBadge('B','idle','');
+}
+
+/* ================= DEFENSE IN DEPTH ================= */
+const LY_TOP = { L1:30, L2:66, L3:102, L4:138 };  // top edge y của mỗi lớp
+const THREATS = {
+  nokey:     { owner:'L4pass', stop:'L2', label:'no key',   cap:'Server không tin client: thiếu <b>Idempotency-Key</b> → chặn ngay ở <b class="ly">Lớp 2 · API</b> với <b>400</b> (P4). Chưa hề chạm tới nghiệp vụ hay DB.' },
+  noauth:    { stop:'L2', label:'no JWT',  cap:'Không có JWT hợp lệ → <b class="ly">Lớp 2 · API</b> trả <b>401</b> và tự đăng xuất (P20/P22). Kẻ lạ không vào được luồng chuyển tiền.' },
+  dblclick:  { stop:'L3', label:'retry',   also:['L1','L4'], cap:'Retry tuần tự cùng key → <b class="ly">Lớp 3 · Handler</b> trả <b>cache</b> (P3), không trừ lại. (Lớp 1 khoá nút và Lớp 4 UNIQUE cũng chặn dự phòng.)' },
+  parallel:  { stop:'L4', label:'2× parallel', cap:'Hai request đến <b>đúng cùng lúc</b> vượt qua cache → chỉ <b class="ly">Lớp 4 · Database</b> chặn được, bằng <b>UNIQUE(Key)</b> / lỗi 23505 (P1). Đây là lý do lớp DB là trọng tài cuối.' },
+  lostupdate:{ stop:'L4', label:'lost update', cap:'Hai lệnh <b>khác key</b> đụng cùng tài khoản → <b class="ly">Lớp 4 · Database</b> bắt bằng <b>Version token</b> (WHERE Version=@old, P5), retry rồi 409 nếu cạn lượt.' },
+  crash:     { stop:'L4', label:'crash', net:true, cap:'Crash giữa chừng → <b class="ly">Lớp 4</b> đảm bảo transaction nguyên tử (P2): chưa COMMIT thì rollback sạch. Nếu là liên NH, <b class="ly">Lớp 5 · Recovery</b> (Outbox/Reconcile) hoàn tất phần dở.' },
+};
+
+let probing=false;
+function pulse(id){ const el=$(id); if(!el)return; el.classList.add('pass'); setTimeout(()=>el.classList.remove('pass'),320); }
+function clearDid(){ ['L1','L2','L3','L4'].forEach(id=>$(id).classList.remove('block','pass'));
+  $('L5').classList.remove('lit'); $('blockTag').setAttribute('opacity','0'); }
+
+async function threat(kind){
+  if(probing) return; probing=true;
+  document.querySelectorAll('.tbtn').forEach(b=>b.disabled=true);
+  clearDid();
+  const t=THREATS[kind], stop=t.stop, targetY=LY_TOP[stop];
+  const probe=$('probe'); probe.setAttribute('opacity','1');
+
+  // di chuyển probe từ trên xuống tới lớp chặn; pulse các lớp đi qua
+  const startY=8, x=300; const pulsed=new Set();
+  await new Promise(res=>{
+    const dur=1300; let s=null;
+    (function f(ts){ if(!s)s=ts; const p=Math.min((ts-s)/dur,1);
+      const y=startY+(targetY-startY)*(p<.5?2*p*p:1-Math.pow(-2*p+2,2)/2);
+      probe.setAttribute('transform',`translate(${x},${y})`);
+      ['L1','L2','L3'].forEach(id=>{ if(id!==stop && !pulsed.has(id) && y>=LY_TOP[id]+2){ pulsed.add(id); pulse(id);} });
+      p<1?requestAnimationFrame(f):res();
+    })(performance.now());
+  });
+
+  // chặn tại lớp owner
+  $(stop).classList.add('block');
+  const bt=$('blockTag'); bt.setAttribute('x',300); bt.setAttribute('y', targetY-8); bt.setAttribute('opacity','1');
+  (t.also||[]).forEach(id=>pulse(id));
+  if(t.net) $('L5').classList.add('lit');
+  await sleep(120);
+  probe.setAttribute('opacity','0');
+
+  const cap=$('didcap'); cap.className='didcap on'; cap.innerHTML=t.cap;
+  document.querySelectorAll('.tbtn').forEach(b=>b.disabled=false); probing=false;
+}
+</script>
+</body>
+</html>
